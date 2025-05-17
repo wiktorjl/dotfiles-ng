@@ -361,6 +361,7 @@ install_base() {
         sudo
         tmux
         zsh
+	ssh-askpass-gnome
         keychain
         sakura
     )
