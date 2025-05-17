@@ -1,0 +1,69 @@
+# ~/.bashrc: executed by bash(1) for non-login shells.
+
+case $- in
+*i*) ;;
+*) return ;;
+esac
+
+source config
+source aliases
+
+HISTCONTROL=ignoreboth
+HISTSIZE=1000
+HISTFILESIZE=2000
+shopt -s histappend
+shopt -s checkwinsize
+
+
+if [ -f ~/.bash_aliases ]; then
+  . ~/.bash_aliases
+fi
+
+if ! shopt -oq posix; then
+  if [ -f /usr/share/bash-completion/bash_completion ]; then
+    . /usr/share/bash-completion/bash_completion
+  elif [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+  fi
+fi
+
+# Default prompts
+PS1_ONE_LINE='\[\e[38;5;201m\][\[\e[38;5;213;1;2m\]\h\[\e[0;2;38;5;220m\]//\[\e[0;38;5;213;1m\]\#\[\e[0;38;5;201m\]]\[\e[0m\] \[\e[3m\]\w\[\e[0m\] \[\e[38;5;221;1m\]\$\[\e[0m\] '
+PS1_TWO_LINE='\n\[\e[38;5;51m\][\[\e[0m\]\h\[\e[38;5;200m\]//\[\e[38;5;33m\]\#\[\e[38;5;51m\]]\[\e[0m\] \[\e[3m\]\W\n\[\e[0;38;5;200m\]\$\[\e[0m\] '
+
+# Check if running in a container and if so add container name to prompt
+if [ -n "$DISTROBOX_ENTER_PATH" ]; then
+  container_name=$(echo "$CONTAINER_ID" | cut -d'_' -f1)
+  PS1_ONE_LINE='\[\e[38;5;51m\][\[\e[38;5;214m\]📦\[\e[38;5;33m\]${CONTAINER_ID:-UNK}\[\e[38;5;200m\]//\[\e[38;5;33m\]\#\[\e[38;5;51m\]]\[\e[0m\] \[\e[3m\]\W\[\e[0m\] \[\e[38;5;200m\]\$\[\e[0m\] '
+  PS1_TWO_LINE='\[\e[38;5;51m\][\[\e[38;5;214m\]📦\[\e[38;5;33m\]${CONTAINER_ID:-UNK}\[\e[38;5;200m\]/\[\e[38;5;200m\]/\[\e[38;5;33m\]\#\[\e[38;5;51m\]]\[\e[0m\] \[\e[3m\]\W\n\[\e[0;38;5;200m\]\$\[\e[0m\] '
+fi
+
+export PS1=$PS1_TWO_LINE # decide which one to use
+
+export GPG_TTY="$(tty)"
+export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+export MANPAGER='nvim +Man!'
+export XDG_DATA_DIRS=$XDG_DATA_DIRS:/var/lib/flatpak/exports/share:/home/seed/.local/share/flatpak/exports/share
+export PATH=$PATH:$HOME/scripts:$HOME/scripts/virsh
+#export SSH_ASKPASS=ksshaskpass
+#export SSH_ASKPASS_REQUIRE=prefer
+
+
+eval $(keychain --eval --quiet id_github id_homelan)
+gpgconf --launch gpg-agent
+source ~/.bashimurc
+
+if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] && command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
+    # If tmux is installed and we're not already in a tmux session
+    tmux setw -g mouse on   
+    # Try to attach to an existing 'default' session
+    if tmux has-session -t default 2>/dev/null; then
+        # Session exists, attach to it and create a new window
+        tmux attach-session -t default
+        tmux new-window
+        #tmux select-window -t :$
+    else
+        # Session doesn't exist, create a new one
+        tmux new-session -s default
+    fi
+fi
