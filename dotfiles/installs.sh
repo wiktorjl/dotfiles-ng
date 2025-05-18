@@ -138,6 +138,7 @@ install_pentest() {
         gobuster
         whatweb
         python3-pip
+	python3-virtualenv
         netcat-openbsd
         socat
         nmap
