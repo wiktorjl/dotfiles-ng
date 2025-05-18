@@ -51,6 +51,8 @@ export PATH=$PATH:$HOME/scripts:$HOME/scripts/virsh
 
 eval $(keychain --eval --quiet id_github id_homelan)
 gpgconf --launch gpg-agent
+
+source ~/bashrc_candidates
 source ~/.bashimurc
 
 if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] && command -v tmux &> /dev/null && [ -z "$TMUX" ]; then

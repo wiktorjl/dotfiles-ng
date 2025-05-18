@@ -1,0 +1,7 @@
+
+# Better tabbing through bash suggestions
+bind 'set show-all-if-ambiguous on'
+bind 'TAB:menu-complete'
+
+# Taken from https://github.com/mrzool/bash-sensible/blob/master/sensible.bash
+source bash-sensible
