@@ -6,7 +6,6 @@ mkdir -p build/defenv
 cp aliases \
    bashrc \
    config \
-   kali.sh \
    package.sh \
    installs.sh build/defenv
 

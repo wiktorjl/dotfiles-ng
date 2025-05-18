@@ -8,23 +8,9 @@ esac
 source config
 source aliases
 
-HISTCONTROL=ignoreboth
-HISTSIZE=1000
-HISTFILESIZE=2000
-shopt -s histappend
-shopt -s checkwinsize
-
 
 if [ -f ~/.bash_aliases ]; then
   . ~/.bash_aliases
-fi
-
-if ! shopt -oq posix; then
-  if [ -f /usr/share/bash-completion/bash_completion ]; then
-    . /usr/share/bash-completion/bash_completion
-  elif [ -f /etc/bash_completion ]; then
-    . /etc/bash_completion
-  fi
 fi
 
 # Default prompts
@@ -50,9 +36,10 @@ export PATH=$PATH:$HOME/scripts:$HOME/scripts/virsh
 
 
 eval $(keychain --eval --quiet id_github id_homelan)
+
 gpgconf --launch gpg-agent
 
-source ~/bashrc_candidates
+source ~/.bashrc_candidates
 source ~/.bashimurc
 
 if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] && command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
