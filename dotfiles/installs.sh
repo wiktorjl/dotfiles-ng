@@ -388,7 +388,7 @@ install_base() {
         ncdu
         neovim
         pv
-        tldr
+        tealdeer
         tree
         vim
     )
