@@ -42,7 +42,7 @@ gpgconf --launch gpg-agent
 source ~/.bashrc_candidates
 source ~/.bashimurc
 
-if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] && command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
+if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] && [ "$TERM_PROGRAM" != "vscode" ] && command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
     # If tmux is installed and we're not already in a tmux session
     tmux setw -g mouse on   
     # Try to attach to an existing 'default' session
