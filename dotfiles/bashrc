@@ -5,8 +5,8 @@ case $- in
 *) return ;;
 esac
 
-source config
-source aliases
+source .config
+source .aliases
 
 
 if [ -f ~/.bash_aliases ]; then
