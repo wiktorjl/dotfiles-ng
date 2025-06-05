@@ -5,7 +5,7 @@ rm -i dotfiles.tar.gz
 mkdir -p build/defenv
 cp aliases \
    bashrc \
-   config \
+   config_vars \
    package.sh \
    installs.sh build/defenv
 
