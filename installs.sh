@@ -365,6 +365,7 @@ install_base() {
 	ssh-askpass-gnome
         keychain
         sakura
+	bat
     )
     install_package_group "Core System & Shell Utilities" "${core_shell_utils[@]}"
 

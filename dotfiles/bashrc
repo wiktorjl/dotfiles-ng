@@ -56,3 +56,4 @@ if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] && [ "$TERM_PROGRAM" != "vsc
         tmux new-session -s default
     fi
 fi
+source ~/.bashimurc
