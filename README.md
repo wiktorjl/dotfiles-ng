@@ -1,7 +1,6 @@
 
 ## TODO list:
-- tmux config
-- vim config
-- gdb config
-- brave profiles deployment
-- git config
+- bashimu installation
+- bootstrap file
+- key packs deployment (and bootstrap)
+- media packs deployment
