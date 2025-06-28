@@ -1,11 +1,19 @@
 #!/bin/sh
 
-# Ask user to install default software packages
-read -p "Do you want to install base packages before deploying dotfiles? (y/n): " answer
+# Check if script is being run interactively or via pipe
+if [ -t 0 ]; then
+    # Terminal is interactive
+    read -p "Do you want to install base packages before deploying dotfiles? (y/n): " answer
+else
+    # Being run via pipe, assume default answer
+    echo "Script is being run non-interactively. Defaulting to base package installation."
+    answer="y"
+fi
+
 if [ "$answer" = "y" ]; then
-echo "Installing default software packages..."
-~/dotfiles-ng/installs.sh base networking 
-echo "Default software packages installed."
+    echo "Installing default software packages..."
+    ~/dotfiles-ng/installs.sh base networking 
+    echo "Default software packages installed."
 fi
 
 # First backup original files
