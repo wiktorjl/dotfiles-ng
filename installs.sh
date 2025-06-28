@@ -362,10 +362,14 @@ install_base() {
         sudo
         tmux
         zsh
-	ssh-askpass-gnome
+	    ssh-askpass-gnome
         keychain
         sakura
-	bat
+	    bat
+        keychain
+        gpg
+        gpg-agent
+        gpgconf
     )
     install_package_group "Core System & Shell Utilities" "${core_shell_utils[@]}"
 

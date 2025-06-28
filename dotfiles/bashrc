@@ -7,6 +7,7 @@ esac
 
 source ~/.config_vars
 source ~/.aliases
+source ~/.bashrc_candidates
 
 
 if [ -f ~/.bash_aliases ]; then
@@ -35,12 +36,29 @@ export PATH=$PATH:$HOME/scripts:$HOME/scripts/virsh
 #export SSH_ASKPASS_REQUIRE=prefer
 
 
-eval $(keychain --eval --quiet id_github id_homelan)
+# If .ssh exists and contains keys, use keychain to manage them
+if [ -d "$HOME/.ssh" ] && [ "$(ls -A $HOME/.ssh)" ]; then
+    if command -v keychain &> /dev/null; then
+      eval $(keychain --eval --quiet id_github id_homelan)
+      gpgconf --launch gpg-agent
+    else
+      echo "keychain is not installed. Please install it to manage SSH keys."
+    fi
+else
+    echo "No SSH keys found in $HOME/.ssh. Skipping keychain setup."
+fi
 
-gpgconf --launch gpg-agent
 
-source ~/.bashrc_candidates
-source ~/.bashimurc
+# If bashimu installed in /usr/local/bin, source it
+if [ -f /usr/local/bin/bashimu ]; then
+    if [ -z "$BASHIMU_SOURCED" ]; then
+        export BASHIMU_SOURCED=1
+        source ~/.bashimurc
+    fi
+else
+    echo "Bashimu not found in /usr/local/bin. Please install it to use bashimu features."
+fi
+
 
 if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] && [ "$TERM_PROGRAM" != "vscode" ] && command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
     # If tmux is installed and we're not already in a tmux session
@@ -56,4 +74,4 @@ if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] && [ "$TERM_PROGRAM" != "vsc
         tmux new-session -s default
     fi
 fi
-source ~/.bashimurc
+# If running in a container, set up tmux to use the container name

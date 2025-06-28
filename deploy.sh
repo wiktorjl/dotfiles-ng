@@ -1,14 +1,31 @@
 #!/bin/sh
 
-# Install default software packages
+# Ask user to install default software packages
+read -p "Do you want to install base packages before deploying dotfiles? (y/n): " answer
+if [ "$answer" = "y" ]; then
 echo "Installing default software packages..."
-~/dotfiles-ng/installs.sh base networking java development syssec vscode brave flatpak
+~/dotfiles-ng/installs.sh base networking 
 echo "Default software packages installed."
+fi
 
 # First backup original files
-echo "Backing up original dotfiles..."
-cp ~/.tmux.conf ~/.tmux.conf.bak
-cp ~/.bashrc ~/.bashrc.bak
+echo "Backing up original dotfiles (skip if do not exist)..."
+if [ -f ~/.tmux.conf ]; then
+    cp ~/.tmux.conf ~/.tmux.conf.bak
+fi
+
+if [ -f ~/.bashrc ]; then
+    cp ~/.bashrc ~/.bashrc.bak
+fi
+
+if [ -f ~/.aliases ]; then
+    cp ~/.aliases ~/.aliases.bak
+fi
+
+if [ -f ~/.bash_profile ]; then
+    cp ~/.bash_profile ~/.bash_profile.bak
+fi
+
 
 # Now, create symlinks to the dotfiles
 echo "Creating symlinks to dotfiles..."
