@@ -1,0 +1,7 @@
+build-essential
+clang
+cmake
+gdb
+git
+gnupg2
+lldb

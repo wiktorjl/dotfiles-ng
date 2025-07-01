@@ -52,71 +52,11 @@ install_flatpak() {
 }
 
 install_brave_browser() {
-    echo "-----------------------------------------------------"
-    echo "Attempting to install Brave Browser..."
-    echo "-----------------------------------------------------"
-
-    # Check if Brave is already installed
-    if command -v brave &> /dev/null; then
-        echo "Brave Browser is already installed. Skipping installation."
-        return
-    fi
-
-    # Install dependencies
-    sudo apt install -y apt-transport-https curl
-
-    sudo curl -fsSLo /usr/share/keyrings/brave-browser-archive-keyring.gpg https://brave-browser-apt-release.s3.brave.com/brave-browser-archive-keyring.gpg
-
-    echo "deb [signed-by=/usr/share/keyrings/brave-browser-archive-keyring.gpg] https://brave-browser-apt-release.s3.brave.com/ stable main"|sudo tee /etc/apt/sources.list.d/brave-browser-release.list
-
-    sudo apt update
-
-    sudo apt install -y brave-browser
-
-
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to install Brave Browser."
-        return 1
-    fi
-
-    echo "Brave Browser installation completed successfully."
+    # moved
 }
 
 install_docker() {
-    echo "-----------------------------------------------------"
-    echo "Attempting to install Docker..."
-    echo "-----------------------------------------------------"
-
-    # Check if Docker is already installed
-    if command -v docker &> /dev/null; then
-        echo "Docker is already installed. Skipping installation."
-        return
-    fi
-
-    sudo apt-get install ca-certificates curl
-    sudo install -m 0755 -d /etc/apt/keyrings
-    sudo curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-    sudo chmod a+r /etc/apt/keyrings/docker.asc
-
-    # Add the repository to Apt sources:
-    echo \
-        "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian \
-        $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
-        sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
-
-    sudo apt-get update
-    sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to install Docker."
-        return 1
-    fi
-
-    # Add the current user to the docker group
-    sudo groupadd docker
-    sudo usermod -aG docker $USER
-    
-    echo "Docker installation completed successfully."
+    # moved
 }
 
 
@@ -138,7 +78,7 @@ install_pentest() {
         gobuster
         whatweb
         python3-pip
-	python3-virtualenv
+	    python3-virtualenv
         netcat-openbsd
         socat
         nmap
@@ -153,134 +93,13 @@ install_pentest() {
 
 # --- Function to install Visual Studio Code ---
 install_vscode() {
-    echo "-----------------------------------------------------"
-    echo "Attempting to install Visual Studio Code (VS Code)..."
-    echo "-----------------------------------------------------"
-
-    # Ensure dependencies are met (curl and gpg should be installed by prior groups)
-    if ! command -v curl &> /dev/null || ! command -v gpg &> /dev/null; then
-        echo "Error: curl or gpg not found. Cannot install VS Code."
-        echo "Please ensure 'curl' and 'gnupg2' are installed."
-        return 1
-    fi
-
-    echo "1. Downloading Microsoft GPG key..."
-    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o microsoft.gpg
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to download or dearmor Microsoft GPG key."
-        rm -f microsoft.gpg # Clean up
-        return 1
-    fi
-
-    echo "2. Installing Microsoft GPG key..."
-    sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/keyrings/microsoft-archive-keyring.gpg
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to install Microsoft GPG key."
-        rm -f microsoft.gpg # Clean up
-        return 1
-    fi
-    rm -f microsoft.gpg # Clean up the temporary gpg file
-
-    echo "3. Adding VS Code repository..."
-    sudo sh -c 'echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list'
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to add VS Code repository."
-        # Consider removing the key and list file if repo add fails
-        sudo rm -f /etc/apt/keyrings/microsoft-archive-keyring.gpg /etc/apt/sources.list.d/vscode.list
-        return 1
-    fi
-
-    echo "4. Updating package lists (after adding VS Code repo)..."
-    sudo apt update
-    if [ $? -ne 0 ]; then
-        echo "Warning: Failed to update package lists after adding VS Code repo. Installation might fail."
-        # Don't necessarily exit, let apt install try
-    fi
-
-    echo "5. Installing VS Code (package: code)..."
-    sudo apt install -y code
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to install VS Code (package: code)."
-        echo "You might need to manually run: sudo apt update && sudo apt install code"
-        return 1
-    fi
-
-    echo "Visual Studio Code installation completed successfully."
-    echo "-----------------------------------------------------"
-    echo
+    # moved
 }
 
 install_metastploit() {
-    echo "-----------------------------------------------------"
-    echo "Attempting to install Metasploit Framework..."
-    echo "-----------------------------------------------------"
-
-    # Check if Metasploit is already installed
-    if command -v msfconsole &> /dev/null; then
-        echo "Metasploit Framework is already installed. Skipping installation."
-        return
-    fi
-
-    curl https://raw.githubusercontent.com/rapid7/metasploit-omnibus/master/config/templates/metasploit-framework-wrappers/msfupdate.erb > msfinstall && \
-    chmod 755 msfinstall && \
-    ./msfinstall && \
-    rm msfinstall
-
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to install Metasploit Framework."
-        return 1
-    fi
-
-    echo "Metasploit Framework installation completed successfully."
 }
 
 install_burpsuite() {
-    echo "-----------------------------------------------------"
-    echo "Attempting to install Burp Suite..."
-    echo "-----------------------------------------------------"
-
-    # Check if Burp Suite is already installed
-    if command -v burpsuite &> /dev/null; then
-        echo "Burp Suite is already installed. Skipping installation."
-        return
-    fi
-
-    # Download the latest version of Burp Suite
-    mkdir -p $HOME/apps
-    curl -L -o /home/$USER/apps/burpsuite.jar  https://portswigger-cdn.net/burp/releases/download?product=community&version=2025.5&type=Jar
-    
-    echo "Burp Suite downloaded to /home/$USER/apps/burpsuite.jar"
-
-cat <<EOF > $HOME/apps/burpsuite.sh
-#!/bin/bash
-java -jar $HOME/apps/burpsuite.jar "\$@"
-EOF
-
-    chmod +x /home/$USER/apps/burpsuite.sh
-
-    # Create a desktop entry for Burp Suite
-    cat <<EOF > /home/$USER/.local/share/applications/burpsuite.desktop
-[Desktop Entry]
-Version=1.0
-Type=Application
-Name=Burp Suite
-Comment=Burp Suite Community Edition
-Exec=java -jar /home/$USER/apps/burpsuite.jar
-Icon=/home/$USER/.local/share/icons/burpsuite.png
-Terminal=false
-Categories=Development;Security;
-StartupNotify=true
-EOF
-
-    # Get some other goodies
-    rm -rf /tmp/burp.git
-    git clone https://aur.archlinux.org/burpsuite.git /tmp/burp.git
-    mkdir -p /home/$USER/.local/share/applications
-    mkdir -p /home/$USER/.local/share/icons
-    # cp -v /tmp/burp.git/burpsuite.desktop /home/$USER/.local/share/applications/burpsuite.desktop
-    cp -v /tmp/burp.git/icon64.png /home/$USER/.local/share/icons/burpsuite.png
-
-    echo "Burp Suite downloaded to /home/$USER/apps/burpsuite.jar"
 }
 
 install_jdk21oracle() {
@@ -316,39 +135,10 @@ install_jdk21oracle() {
 }
 
 install_seclists() {
-    echo "-----------------------------------------------------"
-    echo "Attempting to install SecLists..."
-    echo "-----------------------------------------------------"
-
-    # Check if SecLists is already installed
-    if [ -d "$HOME/SecLists" ]; then
-        echo "SecLists is already installed. Skipping installation."
-        return
-    fi
-
-    # Clone the SecLists repository
-    git clone --depth 1 https://github.com/danielmiessler/SecLists.git "$HOME/SecLists"
-    if [ $? -ne 0 ]; then
-        echo "Error: Failed to clone SecLists repository."
-        return 1
-    fi
-    echo "SecLists installation completed successfully."
-    echo "SecLists cloned to $HOME/SecLists"
-    echo "-----------------------------------------------------"
-    echo
 }
 
 install_linpeas() {
-    echo "-----------------------------------------------------"
-    echo "Attempting to install LinPEAS..."
-    echo "-----------------------------------------------------"
 
-    # Clone the LinPEAS repository
-    echo "Downloading latest LinPEAS..."
-    mkdir -p $HOME/apps
-    curl -L https://github.com/peass-ng/PEASS-ng/releases/latest/download/linpeas.sh > $HOME/apps/linpeas.sh
-    chmod +x $HOME/apps/linpeas.sh
-    echo "LinPEAS downloaded to $HOME/apps/linpeas.sh"
 }
 
 # --- Package Groups ---
@@ -370,6 +160,7 @@ install_base() {
         gpg
         gpg-agent
         gpgconf
+        age
     )
     install_package_group "Core System & Shell Utilities" "${core_shell_utils[@]}"
 
@@ -431,7 +222,7 @@ install_development() {
         cmake
         gdb
         git
-        gnupg2          # Provides gpg, dependency for VS Code key import
+        gnupg2
         lldb
     )
     install_package_group "Development - General Build Tools, Compilers & Version Control" "${dev_general[@]}"

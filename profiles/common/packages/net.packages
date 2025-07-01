@@ -1,0 +1,15 @@
+arp-scan
+bind9-dnsutils
+curl
+iproute2
+iputils-ping
+mtr
+netcat-openbsd
+net-tools
+ngrep
+nmap
+socat
+tcpdump
+traceroute
+wget
+wireguard

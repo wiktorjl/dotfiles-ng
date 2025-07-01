@@ -44,5 +44,29 @@ ln -sf ~/dotfiles-ng/dotfiles/aliases ~/.aliases
 ln -sf ~/dotfiles-ng/dotfiles/tmux.conf ~/.tmux.conf
 ln -sf ~/dotfiles-ng/dotfiles/tmux-sensible.sh ~/.tmux-sensible.sh
 ln -sf ~/dotfiles-ng/config_vars ~/.config_vars
+ln -sf ~/dotfiles-ng/config_secret_vars.age ~/.config_secret_vars.age
 echo "Symlinks created."
 
+# If ~/.ssh does not exist, create it
+if [ ! -d ~/.ssh ]; then
+    echo "Creating ~/.ssh directory..."
+    mkdir -p ~/.ssh
+    chmod 700 ~/.ssh
+    echo "Directory ~/.ssh created."
+
+    touch ~/.ssh/config
+    chmod 600 ~/.ssh/config
+    echo "SSH configuration file created."
+
+    # If SSH keys do not exist, generate them
+    if [ ! -f ~/.ssh/id_rsa ]; then
+        echo "Generating SSH keys..."
+        ssh-keygen -t rsa -b 4096 -C "noreply@wiktor.io" -f ~/.ssh/id_rsa -N ""
+        echo "SSH keys generated."
+    else
+        echo "SSH keys already exist."
+    fi
+
+else
+    echo "~/.ssh directory already exists."
+fi  

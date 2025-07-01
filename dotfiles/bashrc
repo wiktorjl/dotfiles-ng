@@ -9,6 +9,13 @@ source ~/.config_vars
 source ~/.aliases
 source ~/.bashrc_candidates
 
+if [ -f ~/.config_secret_vars ]; then
+  source ~/.config_secret_vars
+fi
+
+if [ -f ~/.config_secret_vars.age ]; then
+  echo "Looks like you have encrypted config_secret_vars file. Please decrypt it first."
+fi
 
 if [ -f ~/.bash_aliases ]; then
   . ~/.bash_aliases

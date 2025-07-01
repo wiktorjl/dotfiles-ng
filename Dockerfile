@@ -18,7 +18,10 @@ RUN apt-get update && \
     lsb-release \
     procps \
     locales \
-    && rm -rf /var/lib/apt/lists/*
+    age \
+    mc \
+    && rm -rf /var/lib/apt/lists/* \
+    && mkdir -p /var/cache/apt/archives/partial
 
 
 # Add user bob
@@ -41,7 +44,7 @@ RUN echo "bob ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/bob && \
 
 # Set the home directory for bob
 ENV HOME=/home/bob
-
+ENV USER=bob
 
 # Copy this project to bob's home directory + dotfiles-ng excluding the Dockerfile
 COPY --chown=bob:bob . /home/bob/dotfiles-ng
@@ -55,6 +58,21 @@ WORKDIR /home/bob/
 
 # Set the user to bob
 USER bob
+
+# Create a file in home dir to trigger dotfiles-ng/deploy.sh
+RUN touch /home/bob/go.sh
+
+# Write to /home/bob/go.sh to run deploy.sh
+RUN echo "#!/bin/bash" > /home/bob/go.sh && \
+    echo "cd ~/dotfiles-ng && ./deploy.sh" >> /home/bob/go.sh && \
+    chmod +x /home/bob/go.sh
+
+# Add a script to quickly apply dotfiles
+RUN echo "#!/bin/bash" > /home/bob/apply_dotfiles.sh && \
+    echo "sudo -u bob /bin/bash" >> /home/bob/apply_dotfiles.sh && \
+    chmod +x /home/bob/apply_dotfiles.sh
+
+RUN echo 'echo "Run ./go.sh to test dotfiles."' >> /home/bob/.bashrc 
 
 # Run bash in interactive mode
 CMD ["/bin/bash", "-i"]
