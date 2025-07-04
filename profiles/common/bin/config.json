@@ -1,0 +1,20 @@
+{
+    "window": {
+        "title": "Proxy Manager",
+        "width": 400,
+        "height": 350
+    },
+    "colors": {
+        "bg_color": "#1e1e1e",
+        "fg_color": "#ffffff",
+        "accent_color": "#3498db",
+        "exit_button_color": "#e74c3c"
+    },
+    "scripts": {
+        "start": "/home/seed/data/scripts/proxy_local_start.sh",
+        "stop": "/home/seed/data/scripts/proxy_local_stop.sh"
+    },
+    "pid_file": "/tmp/ssh_socks_proxy.pid",
+    "ip_info_url": "https://ipinfo.io/json",
+    "icon_path": "proxy.png"
+}

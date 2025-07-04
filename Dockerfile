@@ -63,16 +63,24 @@ USER bob
 RUN touch /home/bob/go.sh
 
 # Write to /home/bob/go.sh to run deploy.sh
-RUN echo "#!/bin/bash" > /home/bob/go.sh && \
-    echo "cd ~/dotfiles-ng && ./deploy.sh" >> /home/bob/go.sh && \
-    chmod +x /home/bob/go.sh
+RUN echo "#!/bin/bash" > /home/bob/deploy_all.sh && \
+    echo "cd ~/dotfiles-ng && ./deploy_dotfiles.sh" >> /home/bob/deploy_all.sh && \
+    chmod +x /home/bob/deploy_all.sh
 
 # Add a script to quickly apply dotfiles
 RUN echo "#!/bin/bash" > /home/bob/apply_dotfiles.sh && \
     echo "sudo -u bob /bin/bash" >> /home/bob/apply_dotfiles.sh && \
     chmod +x /home/bob/apply_dotfiles.sh
 
-RUN echo 'echo "Run ./go.sh to test dotfiles."' >> /home/bob/.bashrc 
+RUN echo 'echo "Run ./deploy_all.sh to test dotfiles."' >> /home/bob/.bashrc 
+
+
+RUN echo "#!/bin/bash" > /home/bob/test_bashimu.sh && \
+    echo "sudo apt update" >> /home/bob/test_bashimu.sh && \
+    echo "sudo apt install -y pipx" >> /home/bob/test_bashimu.sh && \
+    echo "$HOME/dotfiles-ng/profiles/desktop/init-scripts/bashimu.sh" >> /home/bob/test_bashimu.sh && \
+    echo "$HOME/apply_dotfiles.sh" >> /home/bob/test_bashimu.sh && \
+    chmod +x /home/bob/test_bashimu.sh
 
 # Run bash in interactive mode
 CMD ["/bin/bash", "-i"]

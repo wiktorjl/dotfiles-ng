@@ -1,5 +1,6 @@
 ack
 age
+apt-transport-https
 bash
 bash-completion
 bat
@@ -15,6 +16,7 @@ keychain
 mc
 ncdu
 neovim
+pipx
 pv
 sakura
 screen

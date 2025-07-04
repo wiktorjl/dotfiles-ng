@@ -9,8 +9,8 @@ source ~/.config_vars
 source ~/.aliases
 source ~/.bashrc_candidates
 
-if [ -f ~/.config_secret_vars ]; then
-  source ~/.config_secret_vars
+if [ -f ~/.config_vars.secret ]; then
+  source ~/.config_vars.secret
 fi
 
 if [ -f ~/.config_secret_vars.age ]; then
@@ -38,47 +38,53 @@ export GPG_TTY="$(tty)"
 export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
 export MANPAGER='nvim +Man!'
 export XDG_DATA_DIRS=$XDG_DATA_DIRS:/var/lib/flatpak/exports/share:/home/seed/.local/share/flatpak/exports/share
-export PATH=$PATH:$HOME/scripts:$HOME/scripts/virsh
+export PATH=$PATH:$HOME/.local/bin:$HOME/scripts:$HOME/scripts/virsh
 #export SSH_ASKPASS=ksshaskpass
 #export SSH_ASKPASS_REQUIRE=prefer
 
 
-# If .ssh exists and contains keys, use keychain to manage them
-if [ -d "$HOME/.ssh" ] && [ "$(ls -A $HOME/.ssh)" ]; then
-    if command -v keychain &> /dev/null; then
-      eval $(keychain --eval --quiet id_github id_homelan)
-      gpgconf --launch gpg-agent
-    else
-      echo "keychain is not installed. Please install it to manage SSH keys."
-    fi
-else
-    echo "No SSH keys found in $HOME/.ssh. Skipping keychain setup."
+# # If .ssh exists and contains keys, use keychain to manage them
+# if [ -d "$HOME/.ssh" ] && [ "$(ls -A $HOME/.ssh)" ]; then
+#     if command -v keychain &> /dev/null; then
+#       eval $(keychain --eval --quiet id_github id_homelan)
+#       gpgconf --launch gpg-agent
+#     else
+#       echo "keychain is not installed. Please install it to manage SSH keys."
+#     fi
+# else
+#     echo "No SSH keys found in $HOME/.ssh. Skipping keychain setup."
+# fi
+
+
+# # If bashimu installed in /usr/local/bin, source it
+# if [ -f /usr/local/bin/bashimu ]; then
+#     if [ -z "$BASHIMU_SOURCED" ]; then
+#         export BASHIMU_SOURCED=1
+#         source ~/.bashimurc
+#     fi
+# else
+#     echo "Bashimu not found in /usr/local/bin. Please install it to use bashimu features."
+# fi
+
+
+# Check if DOTFILES_REQUEST_TMUX is set to 1
+if [ -z "$DOTFILES_REQUEST_TMUX" ]; then
+    DOTFILES_REQUEST_TMUX=0
 fi
-
-
-# If bashimu installed in /usr/local/bin, source it
-if [ -f /usr/local/bin/bashimu ]; then
-    if [ -z "$BASHIMU_SOURCED" ]; then
-        export BASHIMU_SOURCED=1
-        source ~/.bashimurc
-    fi
-else
-    echo "Bashimu not found in /usr/local/bin. Please install it to use bashimu features."
+# If DOTFILES_REQUEST_TMUX is set to 1, start tmux
+if [ "$DOTFILES_REQUEST_TMUX" -eq 1 ]; then
+  if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] && [ "$TERM_PROGRAM" != "vscode" ] && command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
+      # If tmux is installed and we're not already in a tmux session
+      tmux setw -g mouse on   
+      # Try to attach to an existing 'default' session
+      if tmux has-session -t default 2>/dev/null; then
+          # Session exists, attach to it and create a new window
+          tmux attach-session -t default
+          tmux new-window
+          #tmux select-window -t :$
+      else
+          # Session doesn't exist, create a new one
+          tmux new-session -s default
+      fi
+  fi
 fi
-
-
-if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] && [ "$TERM_PROGRAM" != "vscode" ] && command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
-    # If tmux is installed and we're not already in a tmux session
-    tmux setw -g mouse on   
-    # Try to attach to an existing 'default' session
-    if tmux has-session -t default 2>/dev/null; then
-        # Session exists, attach to it and create a new window
-        tmux attach-session -t default
-        tmux new-window
-        #tmux select-window -t :$
-    else
-        # Session doesn't exist, create a new one
-        tmux new-session -s default
-    fi
-fi
-# If running in a container, set up tmux to use the container name

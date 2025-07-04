@@ -49,9 +49,9 @@ fi
 echo "Configuration complete. Please check the changes and reboot if necessary."
 
 # Ask if SSH should be configured
-read -p "Do you want to configure SSH? (y/n): " CONFIGURE_SSH
+read -p "Do you want to configure SSH Server? (y/n): " CONFIGURE_SSH_SERVER
 
-if [[ "$CONFIGURE_SSH" == "y" || "$CONFIGURE_SSH" == "Y" ]]; then
+if [[ "$CONFIGURE_SSH_SERVER" == "y" || "$CONFIGURE_SSH_SERVER" == "Y" ]]; then
     # Check if SSH service is running
     if systemctl is-active --quiet ssh; then
         echo "SSH service is running."
@@ -78,5 +78,5 @@ if [[ "$CONFIGURE_SSH" == "y" || "$CONFIGURE_SSH" == "Y" ]]; then
         fi
     fi 
 else
-    echo "Skipping SSH configuration."
+    echo "Skipping SSH Server configuration."
 fi

@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Define the base directory for profiles
+BASE_DIR="/home/$USER/dotfiles-ng"
+
 # List profiles and allow user to select one or more.
 # Profiles are stored in the 'profiles/' directory. Each subdirectory is a profile.
 echo "Finding available profiles..."
@@ -8,10 +11,10 @@ profiles=()
 while IFS= read -r -d '' profile; do
     # Strip 'profiles/' prefix for a cleaner name
     profiles+=("$(basename "$profile")")
-done < <(find profiles/ -mindepth 1 -maxdepth 1 -type d -print0)
+done < <(find "$BASE_DIR/profiles/" -mindepth 1 -maxdepth 1 -type d -print0)
 
 if [ ${#profiles[@]} -eq 0 ]; then
-    echo "No profiles found in the 'profiles/' directory."
+    echo "No profiles found in the '$BASE_DIR/profiles/' directory."
     exit 1
 fi
 
@@ -76,14 +79,15 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
 
         for profile in "${selected_profiles[@]}"; do
             echo "--- Applying profile: $profile ---"
+            profile_dir="$BASE_DIR/profiles/$profile"
             # For each *.packages file in profile/selected_profile/packages, install the packages
-            if [ -d "profiles/$profile" ]; then
+            if [ -d "$profile_dir" ]; then
                 echo "Profile '$profile' found. Running init scripts..."
                 # Check if there is an init script for the profile
-                if [ -f "profiles/$profile/init-scripts/$profile-init.sh" ]; then
+                if [ -f "$profile_dir/init-scripts/$profile-init.sh" ]; then
                     echo "Running init script for profile '$profile'..."
                     # Run the init script
-                    bash "profiles/$profile/init-scripts/$profile-init.sh"
+                    bash "$profile_dir/init-scripts/$profile-init.sh"
                     if [ $? -ne 0 ]; then
                         echo "Error: Failed to run init script for profile '$profile'."
                         continue
@@ -93,7 +97,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                 fi
 
                 echo "Installing packages for profile '$profile'..."
-                for package_file in profiles/"$profile"/packages/*.packages; do
+                for package_file in "$profile_dir/packages/"*.packages; do
                     if [ -f "$package_file" ]; then
                         echo "Installing packages from $package_file..."
                         while IFS= read -r package; do
@@ -108,7 +112,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
             
                 # Now run remaining scripts in the profile/scripts directory
                 echo "Running scripts for profile '$profile'..."
-                for script in profiles/"$profile"/post-scripts/*.sh; do
+                for script in "$profile_dir/post-scripts/"*.sh; do
                     if [ -f "$script" ]; then
                         echo "Running script: $script"
                         # Make the script executable if it is not already
@@ -121,6 +125,22 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                         fi
                     fi
                 done
+
+
+                # If there is a bin folder in the profile, link all scripts in it to ~/.local/bin
+                if [ -d "$profile_dir/bin" ]; then
+                    echo "Linking scripts from $profile_dir/bin to ~/.local/bin..."
+                    mkdir -p ~/.local/bin
+                    for script in "$profile_dir/bin/"*; do
+                        if [ -f "$script" ]; then
+                            script_name=$(basename "$script")
+                            # Create a symlink in ~/.local/bin
+                            ln -sf "$(realpath "$script")" ~/.local/bin/"$script_name"
+                            echo "Linked $script_name to ~/.local/bin"
+                        fi
+                    done
+                fi
+
             fi
         done
         echo "All selected profiles have been applied."
@@ -130,5 +150,3 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
 else
     echo "No valid profiles were selected."
 fi
-
-# ----------------------------------------------------------------------------------------------
