@@ -27,6 +27,9 @@ RUN apt-get update && \
 # Add user bob
 RUN useradd -m bob
 
+# Set the password for bob to 'bob'
+RUN echo "bob:bob" | chpasswd
+
 # Set the default shell for bob to bash
 RUN chsh -s /bin/bash bob
 
@@ -56,6 +59,19 @@ RUN find /home/bob/dotfiles-ng -type f -name "*.sh" -exec chmod +x {} \; && \
 # Set the working directory to bob's home directory
 WORKDIR /home/bob/
 
+
+
+# Install OpenSSH server
+RUN apt-get update
+RUN apt install -y openssh-server && \
+    apt install -y openssh-client && \
+    mkdir -p /var/run/sshd
+
+
+EXPOSE 22
+RUN /etc/init.d/ssh start
+
+
 # Set the user to bob
 USER bob
 
@@ -72,8 +88,13 @@ RUN echo "#!/bin/bash" > /home/bob/apply_dotfiles.sh && \
     echo "sudo -u bob /bin/bash" >> /home/bob/apply_dotfiles.sh && \
     chmod +x /home/bob/apply_dotfiles.sh
 
-RUN echo 'echo "Run ./deploy_all.sh to test dotfiles."' >> /home/bob/.bashrc 
+RUN echo '#!/bin/bash' > /home/bob/ssh.sh && \
+    echo 'sudo /etc/init.d/ssh start' >> /home/bob/ssh.sh && \
+    echo 'ssh bob@localhost' >> /home/bob/ssh.sh && \
+    chmod +x /home/bob/ssh.sh
 
+RUN echo 'echo "You can ssh to this machine using ./ssh.sh"' >> /home/bob/.bashrc
+RUN echo 'echo "Run ./deploy_all.sh to test dotfiles."' >> /home/bob/.bashrc 
 
 RUN echo "#!/bin/bash" > /home/bob/test_bashimu.sh && \
     echo "sudo apt update" >> /home/bob/test_bashimu.sh && \
@@ -82,6 +103,5 @@ RUN echo "#!/bin/bash" > /home/bob/test_bashimu.sh && \
     echo "$HOME/apply_dotfiles.sh" >> /home/bob/test_bashimu.sh && \
     chmod +x /home/bob/test_bashimu.sh
 
-# Run bash in interactive mode
-CMD ["/bin/bash", "-i"]
 
+CMD ["/bin/bash", "-l"]
