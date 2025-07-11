@@ -88,3 +88,5 @@ if [ "$DOTFILES_REQUEST_TMUX" -eq 1 ]; then
       fi
   fi
 fi
+
+source $HOME/.local/bin/sysrod.sh
