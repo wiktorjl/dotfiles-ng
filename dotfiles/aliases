@@ -25,7 +25,7 @@ alias DC="distrobox create --image "
 alias DE="distrobox enter"
 alias DL="distrobox list"
 
-alias cat="batcat"
+alias cat="batcat -fn"
 
 fDK() { distrobox stop $1 && distrobox rm $1; }
 
