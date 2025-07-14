@@ -5,12 +5,6 @@ echo "-----------------------------------------------------"
 echo "Attempting to install Brave Browser..."
 echo "-----------------------------------------------------"
 
-# Check if Brave is already installed
-if command -v brave &> /dev/null; then
-    echo "Brave Browser is already installed. Skipping installation."
-    return
-fi
-
 # Install dependencies
 sudo apt install -y apt-transport-https curl
 

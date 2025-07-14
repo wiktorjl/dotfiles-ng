@@ -5,13 +5,6 @@ echo "-----------------------------------------------------"
 echo "Attempting to install Visual Studio Code (VS Code)..."
 echo "-----------------------------------------------------"
 
-# Ensure dependencies are met (curl and gpg should be installed by prior groups)
-if ! command -v curl &> /dev/null || ! command -v gpg &> /dev/null; then
-    echo "Error: curl or gpg not found. Cannot install VS Code."
-    echo "Please ensure 'curl' and 'gnupg2' are installed."
-    return 1
-fi
-
 echo "1. Downloading Microsoft GPG key..."
 curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o microsoft.gpg
 if [ $? -ne 0 ]; then

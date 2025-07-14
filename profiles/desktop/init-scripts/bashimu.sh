@@ -5,12 +5,6 @@ echo "-----------------------------------------------------"
 echo "Attempting to install Bashimu..."
 echo "-----------------------------------------------------"
 
-# Check if Brave is already installed
-if command -v bashimu-cli &> /dev/null; then
-    echo "Bashimu is already installed. Skipping installation."
-    return
-fi
-
 pipx install bashimu
 
 if [ $? -ne 0 ]; then
