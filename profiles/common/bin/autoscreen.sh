@@ -1,5 +1,12 @@
 #!/bin/bash
 
+LOCKFILE="/tmp/autosize.lock.$$"
+if [ -f "$LOCKFILE" ]; then
+	exit 1
+fi
+
+touch "$LOCKFILE"
+
 xrandr --output Virtual-1 --auto
 
 # Initialize previous output variable
@@ -30,3 +37,4 @@ while true; do
     sleep 1
 done
 
+trap "rm -f $LOCKFILE" EXIT
