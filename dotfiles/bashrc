@@ -89,4 +89,8 @@ if [ "$DOTFILES_REQUEST_TMUX" -eq 1 ]; then
   fi
 fi
 
+if [ "$NEED_SCREEN_AUTORESIZE" -eq 1] && [ -n "$DISPLAY" ]; then
+	~/.local/bin/autoscreen.sh &
+fi
+
 source $HOME/.local/bin/sysrod.sh
