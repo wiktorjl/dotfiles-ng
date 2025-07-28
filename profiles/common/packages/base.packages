@@ -25,5 +25,6 @@ sudo
 tealdeer
 tmux
 tree
+unattended-upgrades
 vim
 zsh
