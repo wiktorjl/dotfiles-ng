@@ -46,14 +46,20 @@ UPTIME=$(uptime -p | sed 's/up //')
 # Running Processes
 PROCESSES=$(ps -e --no-headers | wc -l)
 
-# Virtual Environment Check
+# Virtual Environment Check - Optimized
 VIRT_ENV="None"
-# Check for Docker
+# Check for Docker (fast check)
 if [ -f /.dockerenv ]; then
     VIRT_ENV="Docker"
-# Check for QEMU/KVM
-elif [[ $(dmesg 2>/dev/null | grep "Hypervisor detected") =~ "KVM" || $(lspci 2>/dev/null | grep "Red Hat, Inc. Virtio") ]]; then
-    VIRT_ENV="QEMU/KVM"
+# Check systemd-detect-virt first (much faster than dmesg/lspci)
+elif command -v systemd-detect-virt &>/dev/null; then
+    VIRT_TYPE=$(systemd-detect-virt 2>/dev/null)
+    if [ "$VIRT_TYPE" != "none" ] && [ -n "$VIRT_TYPE" ]; then
+        VIRT_ENV="$VIRT_TYPE"
+    fi
+# Fallback to checking /proc/cpuinfo for hypervisor flag (faster than dmesg)
+elif grep -q "hypervisor" /proc/cpuinfo 2>/dev/null; then
+    VIRT_ENV="VM"
 fi
 
 
