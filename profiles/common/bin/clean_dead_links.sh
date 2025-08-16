@@ -25,7 +25,8 @@ echo "----------------------------------------"
 count=0
 
 # Find all symbolic links and check if they're dead
-find "$TARGET_DIR" -type l 2>/dev/null | while read -r link; do
+# Use process substitution to avoid subshell issues with read
+while IFS= read -r -d '' link; do
     # Check if the link target exists
     if [ ! -e "$link" ]; then
         count=$((count + 1))
@@ -37,7 +38,7 @@ find "$TARGET_DIR" -type l 2>/dev/null | while read -r link; do
         
         # Ask for confirmation
         printf "Remove this dead link? [y/N]: "
-        read -r response
+        read -r response </dev/tty
         
         case "$response" in
             [yY]|[yY][eE][sS])
@@ -52,7 +53,7 @@ find "$TARGET_DIR" -type l 2>/dev/null | while read -r link; do
                 ;;
         esac
     fi
-done
+done < <(find "$TARGET_DIR" -type l -print0 2>/dev/null)
 
 # Final summary
 if [ $count -eq 0 ]; then
