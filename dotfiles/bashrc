@@ -93,4 +93,12 @@ if [ "$NEED_SCREEN_AUTORESIZE" -eq 1 ] && [ -n "$DISPLAY" ]; then
 	~/.local/bin/autoscreen.sh > /dev/null 2>&1 
 fi
 
-source $HOME/.local/bin/sysrod.sh
+# Source sysrod.sh if it exists
+if [ -f $HOME/.local/bin/sysrod.sh ]; then
+    source $HOME/.local/bin/sysrod.sh
+fi
+
+# Source .bashrc.local if it exists
+if [ -f ~/.bashrc.local ]; then
+    source ~/.bashrc.local
+fi

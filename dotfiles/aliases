@@ -36,3 +36,8 @@ alias td="tmux detach"
 
 alias cloak="tar czf /tmp/`basename $(pwd)`.tar.gz $(pwd) && age --passphrase -o `basename $(pwd)`.tar.gz.age /tmp/`basename $(pwd)`.tar.gz && rm -rf /tmp/`basename $(pwd)`.tar.gz"
 alias uncloak="age --decrypt -o ./$1.tar.gz ./$1.tar.gz.age && tar xzf ./$1.tar.gz && rm -rf ./$1.tar.gz && rm -rf ./$1.tar.gz.age"
+
+# Source .aliases.local if it exists
+if [ -f ~/.aliases.local ]; then
+    source ~/.aliases.local
+fi
