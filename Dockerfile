@@ -80,7 +80,7 @@ RUN touch /home/bob/go.sh
 
 # Write to /home/bob/go.sh to run deploy.sh
 RUN echo "#!/bin/bash" > /home/bob/deploy_all.sh && \
-    echo "cd ~/dotfiles-ng && ./deploy_dotfiles.sh" >> /home/bob/deploy_all.sh && \
+    echo "cd ~/dotfiles-ng && ./deploy_all.sh" >> /home/bob/deploy_all.sh && \
     chmod +x /home/bob/deploy_all.sh
 
 # Add a script to quickly apply dotfiles

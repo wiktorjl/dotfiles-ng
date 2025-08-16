@@ -12,7 +12,7 @@ fonts-source-code-pro
 
 # Display and UI fonts
 fonts-noto
-fonts-ubuntu
+# fonts-ubuntu  # Not available in many repositories
 fonts-roboto
 fonts-lato
 

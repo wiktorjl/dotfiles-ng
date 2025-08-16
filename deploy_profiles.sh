@@ -337,6 +337,9 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                         print_info "No init scripts found for profile '$profile'. Skipping."
                     else
                         print_success "Completed $init_script_count init scripts for profile '$profile'"
+                        # Run apt update after init scripts to ensure new repositories are available
+                        print_info "Updating package lists after init scripts..."
+                        log_command "sudo -E apt-get update -qq" "Post-init scripts package list update"
                     fi
                 else
                     print_info "No init-scripts directory found for profile '$profile'. Skipping."
@@ -376,10 +379,17 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                     unavailable_packages=()
                     
                     for package in "${all_packages[@]}"; do
-                        if apt-cache show "$package" >/dev/null 2>&1; then
+                        print_info "Checking availability of package: $package"
+                        # Capture both stdout and stderr for debugging
+                        apt_output=$(apt-cache show "$package" 2>&1)
+                        apt_exit_code=$?
+                        
+                        if [ $apt_exit_code -eq 0 ]; then
                             available_packages+=("$package")
+                            print_success "Package '$package' is available"
                         else
                             unavailable_packages+=("$package")
+                            print_warning "Package '$package' not available. apt-cache error: $apt_output"
                             
                             # Try to suggest alternatives for common packages
                             suggestion=""
@@ -393,8 +403,6 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                             
                             if [ -n "$suggestion" ]; then
                                 print_warning "Package '$package' not available. Try: $suggestion"
-                            else
-                                print_warning "Package '$package' not available in repositories"
                             fi
                         fi
                     done
@@ -414,13 +422,12 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                         export DEBIAN_FRONTEND=noninteractive
                         export DEBCONF_NONINTERACTIVE_SEEN=true
                         
-                        sudo -E apt-get install -y -qq --no-install-recommends "${available_packages[@]}" 2>&1 | tee -a "$LOG_FILE"
-                        exit_code=$?
-                        
-                        if [ $exit_code -eq 0 ]; then
+                        # Use a more robust approach to capture exit code
+                        if sudo -E apt-get install -y -qq --no-install-recommends "${available_packages[@]}" 2>&1 | tee -a "$LOG_FILE"; then
                             print_success "All available packages installed successfully"
                             log_message "SUCCESS: All available packages installed successfully"
                         else
+                            exit_code=$?
                             log_error "Batch installation failed with exit code $exit_code"
                             print_warning "Batch installation failed. Falling back to individual package installation..."
                             # Fallback: install packages individually if batch fails
@@ -467,6 +474,13 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                 if [ -d "$profile_dir/bin" ]; then
                     print_progress "Linking scripts from profile bin directory..."
                     mkdir -p ~/.local/bin
+                    
+                    # Clean dead symlinks first if clean_dead_links.sh exists
+                    if [ -f "$BASE_DIR/profiles/common/bin/clean_dead_links.sh" ]; then
+                        print_info "Cleaning dead symlinks in ~/.local/bin..."
+                        # Run non-interactively by piping 'y' to auto-confirm all deletions
+                        echo "y" | bash "$BASE_DIR/profiles/common/bin/clean_dead_links.sh" ~/.local/bin
+                    fi
                     script_count=0
                     for script in "$profile_dir/bin/"*; do
                         if [ -f "$script" ]; then
