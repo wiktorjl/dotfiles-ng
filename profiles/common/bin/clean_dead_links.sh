@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # Script to find and remove dead symbolic links in a directory
 # Usage: clean_dead_links.sh <directory>
