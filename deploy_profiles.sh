@@ -46,6 +46,55 @@ log_command() {
     return $exit_code
 }
 
+# Package verification functions
+collect_all_packages() {
+    local profiles=("$@")
+    local all_requested_packages=()
+    declare -A seen_packages
+    
+    for profile in "${profiles[@]}"; do
+        local profile_dir="$BASE_DIR/profiles/$profile"
+        if [ -d "$profile_dir/packages" ]; then
+            for package_file in "$profile_dir/packages/"*.packages; do
+                if [ -f "$package_file" ]; then
+                    while IFS= read -r package; do
+                        # Skip empty lines and comments
+                        if [[ -n "$package" && ! "$package" =~ ^# ]]; then
+                            # Trim whitespace
+                            package=$(echo "$package" | xargs)
+                            # Check for duplicates
+                            if [[ -z "${seen_packages[$package]}" ]]; then
+                                all_requested_packages+=("$package")
+                                seen_packages["$package"]=1
+                            fi
+                        fi
+                    done < "$package_file"
+                fi
+            done
+        fi
+    done
+    
+    printf '%s\n' "${all_requested_packages[@]}"
+}
+
+verify_package_installation() {
+    local packages=("$@")
+    local installed_packages=()
+    local failed_packages=()
+    
+    for package in "${packages[@]}"; do
+        if dpkg -l "$package" 2>/dev/null | grep -q "^ii"; then
+            installed_packages+=("$package")
+        else
+            failed_packages+=("$package")
+        fi
+    done
+    
+    # Return results via global arrays (bash limitation workaround)
+    INSTALLED_PACKAGES=("${installed_packages[@]}")
+    FAILED_PACKAGES=("${failed_packages[@]}")
+}
+
 # TUI helper functions
 print_header() {
     echo -e "${CYAN}+==============================================================+${NC}"
@@ -503,6 +552,63 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
         done
         echo
         print_success "All selected profiles have been applied successfully!"
+        
+        # Package verification summary
+        echo
+        echo -e "${BOLD}${CYAN}+== PACKAGE INSTALLATION VERIFICATION =======================================+${NC}"
+        print_info "Collecting all requested packages from selected profiles..."
+        
+        # Collect all packages that were requested across all selected profiles
+        mapfile -t all_requested_packages < <(collect_all_packages "${ordered_profiles[@]}")
+        
+        if [ ${#all_requested_packages[@]} -gt 0 ]; then
+            print_info "Verifying installation status of ${#all_requested_packages[@]} requested packages..."
+            
+            # Verify installation status
+            verify_package_installation "${all_requested_packages[@]}"
+            
+            # Log and display results
+            total_requested=${#all_requested_packages[@]}
+            total_installed=${#INSTALLED_PACKAGES[@]}
+            total_failed=${#FAILED_PACKAGES[@]}
+            
+            # Calculate success rate with division by zero protection
+            if [ $total_requested -gt 0 ]; then
+                success_rate=$((total_installed * 100 / total_requested))
+            else
+                success_rate=0
+            fi
+            
+            echo
+            print_info "PACKAGE INSTALLATION SUMMARY:"
+            print_info "=============================="
+            log_message "PACKAGE VERIFICATION: Total requested: $total_requested, Installed: $total_installed, Failed: $total_failed, Success rate: ${success_rate}%"
+            
+            if [ $total_installed -gt 0 ]; then
+                print_success "Successfully installed packages ($total_installed/$total_requested - ${success_rate}%):"
+                echo -e "  ${GREEN}${INSTALLED_PACKAGES[*]}${NC}"
+                log_message "INSTALLED PACKAGES: ${INSTALLED_PACKAGES[*]}"
+            fi
+            
+            if [ $total_failed -gt 0 ]; then
+                print_warning "Failed to install packages ($total_failed/$total_requested):"
+                echo -e "  ${RED}${FAILED_PACKAGES[*]}${NC}"
+                log_message "FAILED PACKAGES: ${FAILED_PACKAGES[*]}"
+            fi
+            
+            echo
+            if [ $total_failed -eq 0 ]; then
+                print_success "🎉 All requested packages were installed successfully!"
+                log_message "SUCCESS: All requested packages were installed successfully"
+            else
+                print_warning "⚠️  Some packages failed to install. Check logs above for details."
+                log_message "WARNING: $total_failed packages failed to install"
+            fi
+        else
+            print_info "No packages were requested for installation."
+            log_message "INFO: No packages were requested for installation"
+        fi
+        echo -e "${CYAN}+=========================================================================+${NC}"
     else
         print_info "Operation cancelled by user."
     fi

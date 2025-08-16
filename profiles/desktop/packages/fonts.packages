@@ -8,7 +8,7 @@ fonts-firacode
 fonts-jetbrains-mono
 fonts-hack
 fonts-anonymous-pro
-fonts-source-code-pro
+#fonts-source-code-pro
 
 # Display and UI fonts
 fonts-noto
@@ -22,7 +22,7 @@ fonts-font-awesome
 # Additional fonts (if available)
 fonts-b612
 fonts-3270
-fonts-adobe-source-sans3
+fonts-adobe-sourcesans3
 fonts-agave
 fonts-lmodern
 fonts-material-design-icons-iconfont
