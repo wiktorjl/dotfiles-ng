@@ -68,10 +68,8 @@ show_deployment_plan() {
     echo -e "${BOLD}${CYAN}Deployment Plan:${NC}"
     echo -e "${CYAN}=================${NC}"
     echo -e "${YELLOW}1.${NC} Install software packages (profiles)"
-    echo -e "${YELLOW}2.${NC} Deploy dotfiles and create symlinks"
-    echo -e "${YELLOW}3.${NC} Decrypt secrets (if any)"
-    echo -e "${YELLOW}4.${NC} Link system configuration files"
-    echo -e "${YELLOW}5.${NC} Post-deployment configuration"
+    echo -e "${YELLOW}2.${NC} Deploy dotfiles and system configuration"
+    echo -e "${YELLOW}3.${NC} Post-deployment configuration"
     echo
 }
 
@@ -132,163 +130,29 @@ main() {
     
     # Step 2: Deploy dotfiles
     echo
-    echo -e "${BOLD}${BLUE}Step 2: Deploying Dotfiles${NC}"
-    echo -e "${BLUE}===========================${NC}"
+    echo -e "${BOLD}${BLUE}Step 2: Deploying Dotfiles and Configuration${NC}"
+    echo -e "${BLUE}=============================================${NC}"
     
-    print_progress "Creating backups of existing dotfiles..."
+    print_progress "Running dotfiles deployment script..."
     
-    # Backup existing dotfiles
-    backup_count=0
-    if [ -f ~/.tmux.conf ]; then
-        cp ~/.tmux.conf ~/.tmux.conf.bak
-        print_info "Backed up ~/.tmux.conf"
-        backup_count=$((backup_count + 1))
-    fi
-    
-    if [ -f ~/.bashrc ]; then
-        cp ~/.bashrc ~/.bashrc.bak
-        print_info "Backed up ~/.bashrc"
-        backup_count=$((backup_count + 1))
-    fi
-    
-    if [ -f ~/.aliases ]; then
-        cp ~/.aliases ~/.aliases.bak
-        print_info "Backed up ~/.aliases"
-        backup_count=$((backup_count + 1))
-    fi
-    
-    if [ -f ~/.bash_profile ]; then
-        cp ~/.bash_profile ~/.bash_profile.bak
-        print_info "Backed up ~/.bash_profile"
-        backup_count=$((backup_count + 1))
-    fi
-    
-    if [ $backup_count -eq 0 ]; then
-        print_info "No existing dotfiles found to backup"
+    if [ -t 0 ]; then
+        # Interactive mode: run deploy_dotfiles.sh with user interaction
+        echo "y" | ./deploy_dotfiles.sh --no-banner
     else
-        print_success "Backed up $backup_count existing dotfiles"
+        # Non-interactive mode: run deploy_dotfiles.sh with auto-confirmation
+        echo "y" | ./deploy_dotfiles.sh --no-banner
     fi
     
-    # Create symlinks
-    print_progress "Creating symbolic links to dotfiles..."
-    
-    ln -sf ~/dotfiles-ng/dotfiles/bashrc ~/.bashrc && print_info "bashrc -> ~/.bashrc"
-    ln -sf ~/dotfiles-ng/dotfiles/bashrc_candidates ~/.bashrc_candidates && print_info "bashrc_candidates -> ~/.bashrc_candidates"
-    ln -sf ~/dotfiles-ng/dotfiles/bash-sensible ~/.bash-sensible && print_info "bash-sensible -> ~/.bash-sensible"
-    ln -sf ~/dotfiles-ng/dotfiles/aliases ~/.aliases && print_info "aliases -> ~/.aliases"
-    ln -sf ~/dotfiles-ng/dotfiles/tmux.conf ~/.tmux.conf && print_info "tmux.conf -> ~/.tmux.conf"
-    ln -sf ~/dotfiles-ng/dotfiles/tmux-sensible.sh ~/.tmux-sensible.sh && print_info "tmux-sensible.sh -> ~/.tmux-sensible.sh"
-    ln -sf ~/dotfiles-ng/config_vars ~/.config_vars && print_info "config_vars -> ~/.config_vars"
-    ln -sf ~/dotfiles-ng/config_vars.secret ~/.config_vars.secret && print_info "config_vars.secret -> ~/.config_vars.secret"
-    
-    print_success "All symbolic links created successfully"
-    
-    # Step 3: SSH setup
-    if [ ! -d ~/.ssh ]; then
-        print_progress "Creating ~/.ssh directory..."
-        mkdir -p ~/.ssh
-        chmod 700 ~/.ssh
-        print_success "Directory ~/.ssh created with proper permissions (700)"
-        
-        touch ~/.ssh/config
-        chmod 600 ~/.ssh/config
-        print_success "SSH configuration file created with proper permissions (600)"
-        
-        if [ ! -f ~/.ssh/id_rsa ]; then
-            print_progress "Generating SSH keys..."
-            ssh-keygen -t rsa -b 4096 -C "noreply@wiktor.io" -f ~/.ssh/id_rsa -N ""
-            print_success "SSH keys generated successfully"
-        else
-            print_info "SSH keys already exist"
-        fi
+    if [ $? -eq 0 ]; then
+        print_success "Dotfiles deployment completed successfully"
     else
-        print_info "~/.ssh directory already exists"
+        print_error "Dotfiles deployment failed"
+        exit 1
     fi
     
-    # Step 4: Decrypt secrets
+    # Step 3: Post-deployment configuration
     echo
-    echo -e "${BOLD}${BLUE}Step 3: Processing Encrypted Files${NC}"
-    echo -e "${BLUE}===================================${NC}"
-    
-    # Check if there are any .age files to decrypt
-    age_files_exist=false
-    for file in ~/dotfiles-ng/*.age; do
-        if [ -f "$file" ]; then
-            age_files_exist=true
-            break
-        fi
-    done
-    
-    if [ "$age_files_exist" = true ]; then
-        print_warning "Encrypted files (.age) detected in the repository."
-        if [ -t 0 ]; then
-            echo -e "${BOLD}${YELLOW}Do you want to decrypt them now?${NC} ${CYAN}[y/N]:${NC}"
-            echo -n "=> "
-            read decrypt_answer
-        else
-            print_info "Running in non-interactive mode. Skipping decryption of encrypted files."
-            decrypt_answer="n"
-        fi
-        
-        if [ "$decrypt_answer" = "y" ]; then
-            print_progress "Decrypting encrypted files..."
-            decrypt_count=0
-            failed_count=0
-            for file in ~/dotfiles-ng/*.age; do
-                if [ -f "$file" ]; then
-                    print_info "Decrypting $(basename "$file")..."
-                    $HOME/dotfiles-ng/lock_file.sh -d "$file"
-                    if [ $? -eq 0 ]; then
-                        print_success "Decrypted $(basename "$file") successfully"
-                        decrypt_count=$((decrypt_count + 1))
-                    else
-                        print_error "Failed to decrypt $(basename "$file"). Please check your age key."
-                        failed_count=$((failed_count + 1))
-                    fi
-                fi
-            done
-            if [ $decrypt_count -gt 0 ]; then
-                print_success "Successfully decrypted $decrypt_count files"
-            fi
-            if [ $failed_count -gt 0 ]; then
-                print_warning "Failed to decrypt $failed_count files"
-            fi
-        else
-            print_info "Skipping decryption of encrypted files"
-        fi
-    else
-        print_info "No encrypted files found"
-    fi
-    
-    # Step 5: System files linking
-    echo
-    echo -e "${BOLD}${BLUE}Step 4: Linking System Configuration Files${NC}"
-    echo -e "${BLUE}===========================================${NC}"
-    
-    print_info "Processing system configuration files..."
-    
-    # Link system files (simplified version - the full logic is in deploy_dotfiles.sh)
-    sysfiles_dir="$HOME/dotfiles-ng/sysfiles-full"
-    if [ -d "$sysfiles_dir" ]; then
-        print_progress "Linking system configuration files..."
-        # Note: This is a simplified version. Full implementation in deploy_dotfiles.sh
-        print_success "System files linking completed"
-    else
-        print_info "No system files directory found"
-    fi
-    
-    # Remove /etc/update-motd.d/10-uname if exists
-    if [ -f /etc/update-motd.d/10-uname ]; then
-        print_progress "Removing /etc/update-motd.d/10-uname..."
-        sudo rm /etc/update-motd.d/10-uname
-        print_success "Removed /etc/update-motd.d/10-uname"
-    else
-        print_info "/etc/update-motd.d/10-uname does not exist"
-    fi
-    
-    # Step 6: Post-deployment configuration
-    echo
-    echo -e "${BOLD}${BLUE}Step 5: Post-Deployment Configuration${NC}"
+    echo -e "${BOLD}${BLUE}Step 3: Post-Deployment Configuration${NC}"
     echo -e "${BLUE}====================================${NC}"
     
     if [ -t 0 ]; then
@@ -313,11 +177,7 @@ main() {
     echo
     print_info "Summary of completed steps:"
     echo -e "  ${GREEN}✓${NC} Software packages installed"
-    echo -e "  ${GREEN}✓${NC} Dotfiles deployed and symlinked"
-    echo -e "  ${GREEN}✓${NC} SSH configuration set up"
-    if [ "$age_files_exist" = true ] && [ "$decrypt_answer" = "y" ]; then
-        echo -e "  ${GREEN}✓${NC} Encrypted files processed"
-    fi
+    echo -e "  ${GREEN}✓${NC} Dotfiles deployed and configuration applied"
     echo -e "  ${GREEN}✓${NC} System configuration files linked"
     
     echo

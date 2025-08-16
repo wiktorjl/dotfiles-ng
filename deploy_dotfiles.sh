@@ -65,12 +65,21 @@ print_banner() {
     echo -e "${CYAN}+==============================================================+${NC}"
     echo
 }
-clear
-print_banner
+# Check if running standalone or from another script
+STANDALONE=true
+if [ "$1" = "--no-banner" ]; then
+    STANDALONE=false
+    shift
+fi
 
-print_info "This script only handles dotfiles deployment."
-print_info "For complete deployment including packages, use: ./deploy_all.sh"
-echo
+if [ "$STANDALONE" = true ]; then
+    clear
+    print_banner
+    
+    print_info "This script only handles dotfiles deployment."
+    print_info "For complete deployment including packages, use: ./deploy_all.sh"
+    echo
+fi
 
 # First backup original files
 print_progress "Backing up original dotfiles (skip if do not exist)..."
