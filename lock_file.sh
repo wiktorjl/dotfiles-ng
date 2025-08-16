@@ -11,6 +11,7 @@
 # Check if the first argument is -d for decryption
 if [ "$1" == "-d" ]; then
     shift  # Remove the -d argument
+    overall_exit_code=0
     for file in "$@"; do
         echo "Decrypting $file..."
         age --decrypt -o "${file%.age}" "$file"
@@ -19,9 +20,12 @@ if [ "$1" == "-d" ]; then
             rm -if "$file"
         else
             echo "Decryption failed for $file."
+            overall_exit_code=1
         fi
     done
+    exit $overall_exit_code
 else
+    overall_exit_code=0
     for file in "$@"; do
         echo "Encrypting $file..."
         age --passphrase -o "${file}.age" "$file"
@@ -30,8 +34,10 @@ else
             rm -f "$file"
         else
             echo "Encryption failed for $file."
+            overall_exit_code=1
         fi
     done
+    exit $overall_exit_code
 fi  
 
 

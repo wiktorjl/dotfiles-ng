@@ -4,14 +4,12 @@ apt-transport-https
 bash
 bash-completion
 bat
-bat
 bc
 gpg
 gpg-agent
 gpgconf
 hexedit
 jq
-keychain
 keychain
 mc
 ncdu

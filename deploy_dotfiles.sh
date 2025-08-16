@@ -1,84 +1,151 @@
-#!/bin/sh
+#!/bin/bash
+
+# Setup logging
+LOG_DIR="/home/$USER/dotfiles-ng/logs"
+LOG_FILE="$LOG_DIR/deploy_dotfiles_$(date +%Y%m%d_%H%M%S).log"
+ERROR_LOG="$LOG_DIR/errors_$(date +%Y%m%d_%H%M%S).log"
+mkdir -p "$LOG_DIR"
+
+# Logging functions
+log_message() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
+}
+
+log_error() {
+    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1" | tee -a "$LOG_FILE" >> "$ERROR_LOG"
+}
+
+# Colors for better TUI
+RED='\033[0;31m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+BLUE='\033[0;34m'
+MAGENTA='\033[0;35m'
+CYAN='\033[0;36m'
+WHITE='\033[1;37m'
+BOLD='\033[1m'
+NC='\033[0m' # No Color
+
+# TUI helper functions
+print_success() {
+    echo -e "${GREEN}[OK]${NC} $1"
+    log_message "SUCCESS: $1"
+}
+
+print_error() {
+    echo -e "${RED}[ERROR]${NC} $1"
+    log_error "$1"
+}
+
+print_warning() {
+    echo -e "${YELLOW}[WARN]${NC} $1"
+    log_message "WARNING: $1"
+}
+
+print_info() {
+    echo -e "${BLUE}[INFO]${NC} $1"
+    log_message "INFO: $1"
+}
+
+print_progress() {
+    echo -e "${MAGENTA}[PROG]${NC} $1"
+    log_message "PROGRESS: $1"
+}
+
+print_banner() {
+    echo
+    echo -e "${CYAN}+==============================================================+${NC}"
+    echo -e "${CYAN}|${NC}  ${BOLD}${WHITE} ____ ____ ____ ____ ____ ____ ____ ____ ____${NC}               ${CYAN}|${NC}"
+    echo -e "${CYAN}|${NC}  ${BOLD}${WHITE}||B |||o |||o |||t |||s |||t |||r |||a |||p ||${NC}              ${CYAN}|${NC}"
+    echo -e "${CYAN}|${NC}  ${BOLD}${WHITE}||__|||__|||__|||__|||__|||__|||__|||__|||__||${NC}              ${CYAN}|${NC}"
+    echo -e "${CYAN}|${NC}  ${BOLD}${WHITE}|/__\\\\|/__\\\\|/__\\\\|/__\\\\|/__\\\\|/__\\\\|/__\\\\|/__\\\\|${NC}                   ${CYAN}|${NC}"
+    echo -e "${CYAN}|${NC}                                     ${YELLOW}seed 2025${NC}                ${CYAN}|${NC}"
+    echo -e "${CYAN}|${NC}                                                              ${CYAN}|${NC}"
+    echo -e "${CYAN}|${NC}          ${BOLD}${MAGENTA}D O T F I L E S   D E P L O Y M E N T${NC}               ${CYAN}|${NC}"
+    echo -e "${CYAN}+==============================================================+${NC}"
+    echo
+}
 clear
-echo
-echo
-echo " ____ ____ ____ ____ ____ ____ ____ ____ ____ "
-echo "||B |||o |||o |||t |||s |||t |||r |||a |||p ||"
-echo "||__|||__|||__|||__|||__|||__|||__|||__|||__||"
-echo "|/__\|/__\|/__\|/__\|/__\|/__\|/__\|/__\|/__\|"
-echo "                             seed 2025        "
-echo
-echo
+print_banner
 
-# Check if script is being run interactively or via pipe
-if [ -t 0 ]; then
-    # Terminal is interactive
-    read -p "Do you want to install base packages before deploying dotfiles? (y/n): " answer
-else
-    # Being run via pipe, assume default answer
-    echo "Script is being run non-interactively. Defaulting to base package installation."
-    answer="y"
-fi
-
-if [ "$answer" = "y" ]; then
-    echo "Installing default software packages..."
-    ~/dotfiles-ng/deploy_profiles.sh base networking 
-    echo "Default software packages installed."
-fi
+print_info "This script only handles dotfiles deployment."
+print_info "For complete deployment including packages, use: ./deploy_all.sh"
+echo
 
 # First backup original files
-echo "Backing up original dotfiles (skip if do not exist)..."
+print_progress "Backing up original dotfiles (skip if do not exist)..."
+backup_count=0
 if [ -f ~/.tmux.conf ]; then
     cp ~/.tmux.conf ~/.tmux.conf.bak
+    print_info "Backed up ~/.tmux.conf"
+    backup_count=$((backup_count + 1))
 fi
 
 if [ -f ~/.bashrc ]; then
     cp ~/.bashrc ~/.bashrc.bak
+    print_info "Backed up ~/.bashrc"
+    backup_count=$((backup_count + 1))
 fi
 
 if [ -f ~/.aliases ]; then
     cp ~/.aliases ~/.aliases.bak
+    print_info "Backed up ~/.aliases"
+    backup_count=$((backup_count + 1))
 fi
 
 if [ -f ~/.bash_profile ]; then
     cp ~/.bash_profile ~/.bash_profile.bak
+    print_info "Backed up ~/.bash_profile"
+    backup_count=$((backup_count + 1))
+fi
+
+if [ $backup_count -eq 0 ]; then
+    print_info "No existing dotfiles found to backup"
+else
+    print_success "Backed up $backup_count existing dotfiles"
 fi
 
 
 # Now, create symlinks to the dotfiles
-echo "Creating symlinks to dotfiles..."
-ln -sf ~/dotfiles-ng/dotfiles/bashrc ~/.bashrc
-ln -sf ~/dotfiles-ng/dotfiles/bashrc_candidates ~/.bashrc_candidates
-ln -sf ~/dotfiles-ng/dotfiles/bash-sensible ~/.bash-sensible
-ln -sf ~/dotfiles-ng/dotfiles/aliases ~/.aliases
-ln -sf ~/dotfiles-ng/dotfiles/tmux.conf ~/.tmux.conf
-ln -sf ~/dotfiles-ng/dotfiles/tmux-sensible.sh ~/.tmux-sensible.sh
-ln -sf ~/dotfiles-ng/config_vars ~/.config_vars
-ln -sf ~/dotfiles-ng/config_vars.secret ~/.config_vars.secret
-echo "Symlinks created."
+print_progress "Creating symlinks to dotfiles..."
+echo -e "${CYAN}+-------------------------------------------+${NC}"
+echo -e "${CYAN}|${NC} ${BOLD}Creating symbolic links...${NC}              ${CYAN}|${NC}"
+echo -e "${CYAN}+-------------------------------------------+${NC}"
+
+ln -sf ~/dotfiles-ng/dotfiles/bashrc ~/.bashrc && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bashrc -> ~/.bashrc                   ${CYAN}|${NC}"
+ln -sf ~/dotfiles-ng/dotfiles/bashrc_candidates ~/.bashrc_candidates && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bashrc_candidates -> ~/.bashrc_candidates ${CYAN}|${NC}"
+ln -sf ~/dotfiles-ng/dotfiles/bash-sensible ~/.bash-sensible && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bash-sensible -> ~/.bash-sensible     ${CYAN}|${NC}"
+ln -sf ~/dotfiles-ng/dotfiles/aliases ~/.aliases && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} aliases -> ~/.aliases                 ${CYAN}|${NC}"
+ln -sf ~/dotfiles-ng/dotfiles/tmux.conf ~/.tmux.conf && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} tmux.conf -> ~/.tmux.conf             ${CYAN}|${NC}"
+ln -sf ~/dotfiles-ng/dotfiles/tmux-sensible.sh ~/.tmux-sensible.sh && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} tmux-sensible.sh -> ~/.tmux-sensible.sh ${CYAN}|${NC}"
+ln -sf ~/dotfiles-ng/config_vars ~/.config_vars && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} config_vars -> ~/.config_vars         ${CYAN}|${NC}"
+ln -sf ~/dotfiles-ng/config_vars.secret ~/.config_vars.secret && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} config_vars.secret -> ~/.config_vars.secret ${CYAN}|${NC}"
+
+echo -e "${CYAN}+-------------------------------------------+${NC}"
+print_success "All symbolic links created successfully."
 
 # If ~/.ssh does not exist, create it
 if [ ! -d ~/.ssh ]; then
-    echo "Creating ~/.ssh directory..."
+    print_progress "Creating ~/.ssh directory..."
     mkdir -p ~/.ssh
     chmod 700 ~/.ssh
-    echo "Directory ~/.ssh created."
+    print_success "Directory ~/.ssh created with proper permissions (700)."
 
     touch ~/.ssh/config
     chmod 600 ~/.ssh/config
-    echo "SSH configuration file created."
+    print_success "SSH configuration file created with proper permissions (600)."
 
     # If SSH keys do not exist, generate them
     if [ ! -f ~/.ssh/id_rsa ]; then
-        echo "Generating SSH keys..."
+        print_progress "Generating SSH keys..."
         ssh-keygen -t rsa -b 4096 -C "noreply@wiktor.io" -f ~/.ssh/id_rsa -N ""
-        echo "SSH keys generated."
+        print_success "SSH keys generated successfully."
     else
-        echo "SSH keys already exist."
+        print_info "SSH keys already exist."
     fi
 
 else
-    echo "~/.ssh directory already exists."
+    print_info "~/.ssh directory already exists."
 fi  
 
 
@@ -94,34 +161,47 @@ done
 
 # If .age files exist, ask user if they want to decrypt them
 if [ "$age_files_exist" = true ]; then
+    print_warning "Encrypted files (.age) detected in the repository."
     if [ -t 0 ]; then
         # Terminal is interactive
-        read -p "Encrypted files found. Do you want to decrypt them now? (y/n): " decrypt_answer
+        echo -e "${BOLD}${YELLOW}Do you want to decrypt them now?${NC} ${CYAN}[y/N]:${NC}"
+        echo -n "=> "
+        read decrypt_answer
     else
         # Being run via pipe, assume no decryption by default
-        echo "Script is being run non-interactively. Skipping decryption of encrypted files."
+        print_info "Script is being run non-interactively. Skipping decryption of encrypted files."
         decrypt_answer="n"
     fi
     
     if [ "$decrypt_answer" = "y" ]; then
-        echo "Decrypting encrypted files..."
+        print_progress "Decrypting encrypted files..."
+        decrypt_count=0
+        failed_count=0
         for file in ~/dotfiles-ng/*.age; do
             if [ -f "$file" ]; then
                 # Decrypt the file and save it with .secret extension
-                echo "Decrypting $file..."
+                print_info "Decrypting $(basename "$file")..."
                 $HOME/dotfiles-ng/lock_file.sh -d "$file"
                 if [ $? -eq 0 ]; then
-                    echo "Decrypted $file successfully."
+                    print_success "Decrypted $(basename "$file") successfully."
+                    decrypt_count=$((decrypt_count + 1))
                 else
-                    echo "Failed to decrypt $file. Please check your age key."
+                    print_error "Failed to decrypt $(basename "$file"). Please check your age key."
+                    failed_count=$((failed_count + 1))
                 fi
             fi
         done
+        if [ $decrypt_count -gt 0 ]; then
+            print_success "Successfully decrypted $decrypt_count files"
+        fi
+        if [ $failed_count -gt 0 ]; then
+            print_warning "Failed to decrypt $failed_count files"
+        fi
     else
-        echo "Skipping decryption of encrypted files."
+        print_info "Skipping decryption of encrypted files."
     fi
 else
-    echo "No encrypted files found."
+    print_info "No encrypted files found."
 fi
 
 # sysfiles-full is a representation of our custom system config files, rooted at /
@@ -150,7 +230,7 @@ link_system_file() {
     # Backup existing file if it's not already a symlink
     if [ -f "$target_file" ] && [ ! -L "$target_file" ]; then
         backup_file="${target_file}.bak.$(date +%Y%m%d_%H%M%S)"
-        echo "Backing up $target_file to $backup_file"
+        print_warning "Backing up $target_file to $backup_file"
         if ! sudo cp -f "$target_file" "$backup_file"; then
             echo "Warning: Failed to backup $target_file, continuing..."
         fi
@@ -161,7 +241,7 @@ link_system_file() {
     source_owner=$(stat -c "%U:%G" "$source_file" 2>/dev/null || echo "root:root")
     
     # Create symlink with error handling
-    echo "Linking $source_file -> $target_file"
+    print_info "Linking $(basename "$source_file") -> $target_file"
     if ! sudo ln -sf "$source_file" "$target_file"; then
         echo "Error: Failed to create symlink $target_file"
         return 1
@@ -212,7 +292,12 @@ link_system_files() {
     rm -f "$temp_file"
     
     # Report results
-    echo "System files linking completed: $processed_count successful, $failed_count failed"
+    if [ $processed_count -gt 0 ]; then
+        print_success "System files linking completed: $processed_count successful"
+    fi
+    if [ $failed_count -gt 0 ]; then
+        print_warning "$failed_count files failed to link"
+    fi
     
     if [ "$failed_count" -gt 0 ]; then
         echo "Warning: Some system files failed to link. Check the output above for details."
@@ -229,9 +314,13 @@ link_system_files
 
 # Remove /etc/update-motd.d/10-uname if exists
 if [ -f /etc/update-motd.d/10-uname ]; then
-    echo "Removing /etc/update-motd.d/10-uname..."
+    print_progress "Removing /etc/update-motd.d/10-uname..."
     sudo rm /etc/update-motd.d/10-uname
-    echo "Removed /etc/update-motd.d/10-uname."
+    print_success "Removed /etc/update-motd.d/10-uname."
 else
-    echo "/etc/update-motd.d/10-uname does not exist."
+    print_info "/etc/update-motd.d/10-uname does not exist."
 fi
+
+echo
+print_success "${BOLD}Dotfiles deployment completed successfully!${NC}"
+echo -e "${CYAN}================================================================${NC}"

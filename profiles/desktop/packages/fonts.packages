@@ -1,22 +1,30 @@
-consolefonts-bedstead
-fonts-*12 
-fonts-3270 
-fonts-adf-* 
-fonts-adobe-* 
-fonts-agave 
-fonts-anonymous-pro 
-fonts-atari*
-fonts-glasstty 
-fonts-havana fonts-hack
-fonts-ibm-plex 
-fonts-jetbrains-mono 
-fonts-joscelyn 
-fonts-junction 
-fonts-jura 
-fonts-kode-mono
-fonts-lmodern
-fonts-material-design-* 
-fonts-monofur 
-fonts-monoid* 
-fonts-mononoki
+# Console and terminal fonts
+fonts-terminus
+fonts-dejavu
+fonts-liberation
+
+# Programming and monospace fonts
+fonts-firacode
+fonts-jetbrains-mono
+fonts-hack
+fonts-anonymous-pro
+fonts-source-code-pro
+
+# Display and UI fonts
 fonts-noto
+fonts-ubuntu
+fonts-roboto
+fonts-lato
+
+# Icon fonts
+fonts-font-awesome
+
+# Additional fonts (if available)
+fonts-b612
+fonts-3270
+fonts-adobe-source-sans3
+fonts-agave
+fonts-lmodern
+fonts-material-design-icons-iconfont
+fonts-monofur
+fonts-mononoki
