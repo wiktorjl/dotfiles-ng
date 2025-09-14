@@ -84,3 +84,4 @@ fi
 
 # --- Display Output ---
 echo -e "${GREEN}${DECO_LEFT} ${USER_HOST} | ${DISTRO} | KERNEL: ${KERNEL} | CPU: ${CPU_LOAD} | MEM: ${MEM_INFO} | DISK: ${DISK_FREE} free | USERS: ${USERS} | PROC: ${PROCESSES} | UPTIME: ${UPTIME} | VIRT: ${VIRT_ENV} | ${DOTFILES_STATUS} ${DECO_RIGHT}${NC}"
+echo
