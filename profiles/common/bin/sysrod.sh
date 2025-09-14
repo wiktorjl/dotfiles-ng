@@ -65,9 +65,20 @@ fi
 # Dotfiles Status Check
 DOTFILES_STATUS=""
 if [ -d "$HOME/dotfiles-ng" ]; then
-    DOTFILES_STATUS=$($(dirname "$0")/check_dotfiles_status.sh 2>/dev/null || echo "dotfiles-ng: error")
+    # Get the absolute path to the script directory
+    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -x "$SCRIPT_DIR/check_dotfiles_status.sh" ]; then
+        DOTFILES_STATUS=$("$SCRIPT_DIR/check_dotfiles_status.sh" 2>/dev/null || echo "Dotfiles: error")
+    else
+        # Fallback: try to find it in ~/.local/bin
+        if [ -x "$HOME/.local/bin/check_dotfiles_status.sh" ]; then
+            DOTFILES_STATUS=$("$HOME/.local/bin/check_dotfiles_status.sh" 2>/dev/null || echo "Dotfiles: error")
+        else
+            DOTFILES_STATUS="Dotfiles: script not found"
+        fi
+    fi
 else
-    DOTFILES_STATUS="dotfiles-ng: not found"
+    DOTFILES_STATUS="Dotfiles: not found"
 fi
 
 
