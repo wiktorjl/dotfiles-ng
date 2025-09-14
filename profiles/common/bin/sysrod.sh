@@ -62,6 +62,14 @@ elif grep -q "hypervisor" /proc/cpuinfo 2>/dev/null; then
     VIRT_ENV="VM"
 fi
 
+# Dotfiles Status Check
+DOTFILES_STATUS=""
+if [ -d "$HOME/dotfiles-ng" ]; then
+    DOTFILES_STATUS=$($(dirname "$0")/check_dotfiles_status.sh 2>/dev/null || echo "dotfiles-ng: error")
+else
+    DOTFILES_STATUS="dotfiles-ng: not found"
+fi
+
 
 # --- Display Output ---
-echo -e "${GREEN}${DECO_LEFT} ${USER_HOST} | ${DISTRO} | KERNEL: ${KERNEL} | CPU: ${CPU_LOAD} | MEM: ${MEM_INFO} | DISK: ${DISK_FREE} free | USERS: ${USERS} | PROC: ${PROCESSES} | UPTIME: ${UPTIME} | VIRT: ${VIRT_ENV} ${DECO_RIGHT}${NC}"
+echo -e "${GREEN}${DECO_LEFT} ${USER_HOST} | ${DISTRO} | KERNEL: ${KERNEL} | CPU: ${CPU_LOAD} | MEM: ${MEM_INFO} | DISK: ${DISK_FREE} free | USERS: ${USERS} | PROC: ${PROCESSES} | UPTIME: ${UPTIME} | VIRT: ${VIRT_ENV} | ${DOTFILES_STATUS} ${DECO_RIGHT}${NC}"
