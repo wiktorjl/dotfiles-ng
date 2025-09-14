@@ -95,5 +95,5 @@ fi
 if [ -n "$REMOTE_STATUS" ] && [[ "$REMOTE_STATUS" == *"✓"* ]]; then
     echo "Dotfiles: Up to date"
 else
-    echo "Dotfiles: Update available"
+    echo -e "Dotfiles: ${RED}Update available${NC}"
 fi
