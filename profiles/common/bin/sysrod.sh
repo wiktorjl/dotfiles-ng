@@ -21,7 +21,7 @@ USER_HOST="$(whoami)@$(hostname)"
 KERNEL=$(uname -r)
 if [ -f /etc/os-release ]; then
     . /etc/os-release
-    DISTRO="$NAME $VERSION_ID"
+    DISTRO="$NAME $VERSION_ID ($VERSION_CODENAME)"
 else
     DISTRO=$(cat /etc/*-release | head -n1)
 fi
