@@ -85,12 +85,104 @@ ask_confirmation() {
     fi
 }
 
+# Check for required tools
+check_required_tools() {
+    local missing_tools=()
+
+    # Check for sudo
+    if ! command -v sudo >/dev/null 2>&1; then
+        missing_tools+=("sudo")
+    fi
+
+    # Check for curl
+    if ! command -v curl >/dev/null 2>&1; then
+        missing_tools+=("curl")
+    fi
+
+    if [ ${#missing_tools[@]} -gt 0 ]; then
+        print_error "Missing required tools: ${missing_tools[*]}"
+        echo
+        print_info "These tools are required for the deployment process."
+        echo -e "${BOLD}${YELLOW}Do you want to install the missing tools?${NC} ${CYAN}[y/N]:${NC}"
+        echo -n "=> "
+
+        # Handle non-interactive mode
+        if [ -t 0 ]; then
+            read install_tools
+        else
+            install_tools="y"
+            print_info "Non-interactive mode: Auto-accepting tool installation"
+        fi
+
+        if [[ "$install_tools" == "y" || "$install_tools" == "Y" ]]; then
+            print_progress "Installing missing tools..."
+
+            # Try to install without sudo first (for systems where user has direct package manager access)
+            for tool in "${missing_tools[@]}"; do
+                if [ "$tool" = "sudo" ]; then
+                    print_info "Installing sudo..."
+                    if command -v apt-get >/dev/null 2>&1; then
+                        apt-get update && apt-get install -y sudo
+                    elif command -v yum >/dev/null 2>&1; then
+                        yum install -y sudo
+                    elif command -v pacman >/dev/null 2>&1; then
+                        pacman -S --noconfirm sudo
+                    else
+                        print_error "Package manager not supported. Please install sudo manually."
+                        exit 1
+                    fi
+                elif [ "$tool" = "curl" ]; then
+                    print_info "Installing curl..."
+                    if command -v apt-get >/dev/null 2>&1; then
+                        if command -v sudo >/dev/null 2>&1; then
+                            sudo apt-get update && sudo apt-get install -y curl
+                        else
+                            apt-get update && apt-get install -y curl
+                        fi
+                    elif command -v yum >/dev/null 2>&1; then
+                        if command -v sudo >/dev/null 2>&1; then
+                            sudo yum install -y curl
+                        else
+                            yum install -y curl
+                        fi
+                    elif command -v pacman >/dev/null 2>&1; then
+                        if command -v sudo >/dev/null 2>&1; then
+                            sudo pacman -S --noconfirm curl
+                        else
+                            pacman -S --noconfirm curl
+                        fi
+                    else
+                        print_error "Package manager not supported. Please install curl manually."
+                        exit 1
+                    fi
+                fi
+
+                # Verify installation
+                if command -v "$tool" >/dev/null 2>&1; then
+                    print_success "$tool installed successfully"
+                else
+                    print_error "Failed to install $tool"
+                    exit 1
+                fi
+            done
+        else
+            print_error "Required tools not available. Deployment cannot continue."
+            exit 1
+        fi
+    else
+        print_success "All required tools are available"
+    fi
+}
+
 # Main deployment function
 main() {
     clear
     print_banner
     log_message "Starting complete dotfiles deployment"
-    
+
+    # Check for required tools first
+    check_required_tools
+
     show_deployment_plan
     
     # Check if running interactively
