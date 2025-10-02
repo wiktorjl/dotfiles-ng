@@ -1,53 +1,64 @@
 #!/bin/bash
 
-# --- Configuration ---
-LEASES_FILE="/var/lib/arpalert/arpalert.leases"
+# Script to list IP addresses of KVM virtual machines
+# Usage:
+#   list_kvm_ips.sh          # List IPs for all running VMs
+#   list_kvm_ips.sh <vm-name> # List IPs for specific VM
 
-# --- Main Logic ---
+VM_NAME="${1:-}"
 
-# Check if the leases file exists and is readable
-if [[ ! -r "$LEASES_FILE" ]]; then
-  echo "Error: Leases file not found or not readable at $LEASES_FILE" >&2
-  exit 1
-fi
+# Function to get and display IP addresses for a VM
+get_vm_ips() {
+    local vm="$1"
 
-# Create an associative array to hold MAC-to-IP mappings.
-declare -A leases_map
+    # Check if VM is running
+    local state
+    state=$(sudo virsh domstate "$vm" 2>/dev/null)
 
-# Read the ARP lease file efficiently without forking external commands in the loop.
-# Format: MAC IP INTERFACE TIMESTAMP SEQUENCE
-# We only need the first two fields (mac, ip).
-while read -r mac ip _; do
-  # Use built-in bash string manipulation for lowercasing. It's much faster.
-  leases_map[${mac,,}]=$ip
-done < "$LEASES_FILE"
+    if [[ $? -ne 0 ]]; then
+        echo "Error: VM '$vm' not found" >&2
+        return 1
+    fi
 
-# Use the --name flag for machine-readable output and to handle VM names with spaces.
-# Process substitution <() is generally safer than for-in loops with command substitution.
-while read -r vmname; do
-  # Skip empty lines that might be returned for non-existent domains.
-  [[ -z "$vmname" ]] && continue
+    if [[ "$state" != "running" ]]; then
+        echo "VM: $vm (not running)"
+        return 0
+    fi
 
-  # Use `virsh domstate` for a direct, reliable check of the VM's state.
-  if [[ "$(virsh domstate "$vmname")" == "running" ]]; then
-    echo "VM: $vmname"
-    
-    # Get interfaces, skipping the header and footer lines.
-    # The `read` command here parses the line directly into variables.
-    virsh domiflist "$vmname" | tail -n +3 | head -n -1 | while read -r iface type network model mac state; do
-      # Skip interfaces without a MAC address
-      [[ -z "$mac" ]] && continue
-      
-      # Use bash parameter expansion for lowercasing the MAC address.
-      mac_lower=${mac,,}
+    echo "VM: $vm"
 
-      # Check if the lowercase MAC address is a key in our map.
-      ip=${leases_map[$mac_lower]}
+    # Get IP addresses using ARP source
+    local output
+    output=$(sudo virsh domifaddr "$vm" --full --source arp 2>/dev/null)
 
-      if [[ -n "$ip" ]]; then
-        # Use printf for safer, more reliable output formatting.
-        printf "  Interface: %-15s MAC: %s, IP: %s\n" "$iface" "$mac" "$ip"
-      fi
+    if [[ $? -eq 0 && -n "$output" ]]; then
+        # Skip the header lines and display interface info
+        echo "$output" | tail -n +3 | while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            echo "  $line"
+        done
+    else
+        echo "  No IP addresses found"
+    fi
+
+    echo ""
+}
+
+# Main logic
+if [[ -n "$VM_NAME" ]]; then
+    # Single VM specified
+    get_vm_ips "$VM_NAME"
+else
+    # List all running VMs
+    mapfile -t running_vms < <(sudo virsh list --name 2>/dev/null | grep -v '^$')
+
+    if [[ ${#running_vms[@]} -eq 0 ]]; then
+        echo "No running VMs found"
+        exit 0
+    fi
+
+    for vm in "${running_vms[@]}"; do
+        [[ -z "$vm" ]] && continue
+        get_vm_ips "$vm"
     done
-  fi
-done < <(virsh list --all --name)
+fi
