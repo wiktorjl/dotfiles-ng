@@ -91,8 +91,42 @@ else
     DOTFILES_STATUS="Dotfiles: not found"
 fi
 
-# Build the status line
-STATUS_LINE="${GREEN}${DECO_LEFT} ${USER_HOST} | ${DISTRO} | KERNEL: ${KERNEL} | CPU: ${CPU_LOAD} | MEM: ${MEM_INFO} | DISK: ${DISK_FREE} free | USERS: ${USERS} | PROC: ${PROCESSES} | UPTIME: ${UPTIME} | VIRT: ${VIRT_ENV} | ${DOTFILES_STATUS} ${DECO_RIGHT}${NC}"
+# Additional colors
+CYAN='\033[0;36m'
+YELLOW='\033[1;33m'
+BOLD='\033[1m'
+DIM='\033[2m'
+
+# Symbols
+SYMBOL_SYSTEM="▸"
+SYMBOL_RESOURCE="●"
+SYMBOL_STATUS="◆"
+
+# Build the status output with sections
+SECTION_SYSTEM="${BOLD}${GREEN}${SYMBOL_SYSTEM} SYSTEM${NC}"
+LINE_SYSTEM="  ${GREEN}${USER_HOST}${NC} ${DIM}|${NC} ${DISTRO} ${DIM}|${NC} ${KERNEL}"
+
+SECTION_RESOURCES="${BOLD}${CYAN}${SYMBOL_RESOURCE} RESOURCES${NC}"
+LINE_RES1="  CPU ${CPU_LOAD}  ${DIM}•${NC}  MEM ${MEM_INFO}  ${DIM}•${NC}  DISK ${DISK_FREE} free"
+LINE_RES2="  PROC ${PROCESSES}  ${DIM}•${NC}  USERS ${USERS}"
+
+SECTION_STATUS="${BOLD}${YELLOW}${SYMBOL_STATUS} STATUS${NC}"
+LINE_STAT1="  Uptime: ${UPTIME}"
+LINE_STAT2="  Virtualization: ${VIRT_ENV}"
+LINE_STAT3="  ${DOTFILES_STATUS}"
+
+# Build the complete status output
+STATUS_LINE="${SECTION_SYSTEM}
+${LINE_SYSTEM}
+
+${SECTION_RESOURCES}
+${LINE_RES1}
+${LINE_RES2}
+
+${SECTION_STATUS}
+${LINE_STAT1}
+${LINE_STAT2}
+${LINE_STAT3}"
 
 # Write to cache file atomically (write to temp file, then move)
 TEMP_FILE="${CACHE_FILE}.tmp.$$"
