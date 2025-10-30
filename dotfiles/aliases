@@ -18,7 +18,6 @@ alias l='ls -CF'
 alias rm='rm -i'
 alias RL="source ~/.bashrc"
 alias F="fabric -s"
-alias VENV="virtualenv .venv && source .venv/bin/activate"
 
 alias D="distrobox"
 alias DC="distrobox create --image "
@@ -30,6 +29,7 @@ alias ?="bashimu-cli"
 
 fDK() { distrobox stop $1 && distrobox rm $1; }
 
+alias csvenv="virtualenv .venv && source .venv/bin/activate"
 alias svenv="source .venv/bin/activate"
 
 alias td="tmux detach"
