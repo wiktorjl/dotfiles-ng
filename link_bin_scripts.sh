@@ -45,7 +45,7 @@ while IFS= read -r -d '' link; do
     if [ ! -e "$link" ]; then
         echo "  Removing dead link: $(basename "$link")"
         rm "$link"
-        ((dead_links_count++))
+        dead_links_count=$((dead_links_count + 1))
     fi
 done < <(find "${LOCAL_BIN_DIR}" -maxdepth 1 -type l -print0 2>/dev/null) || true
 
@@ -69,7 +69,7 @@ for script in "${PROFILE_BIN_DIR}"/*; do
         if [ -e "$target" ] || [ -L "$target" ]; then
             if [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$script")" ]; then
                 echo "  Skipping ${script_name} (already linked correctly)"
-                ((skipped_count++))
+                skipped_count=$((skipped_count + 1))
                 continue
             fi
             echo "  Removing existing: ${script_name}"
@@ -79,7 +79,7 @@ for script in "${PROFILE_BIN_DIR}"/*; do
         # Create symlink
         ln -s "$script" "$target"
         echo "  Linked: ${script_name}"
-        ((linked_count++))
+        linked_count=$((linked_count + 1))
     fi
 done
 
