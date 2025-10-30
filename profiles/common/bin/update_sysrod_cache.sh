@@ -70,7 +70,7 @@ elif command -v systemd-detect-virt &>/dev/null; then
 # Fallback to checking /proc/cpuinfo for hypervisor flag (faster than dmesg)
 elif grep -q "hypervisor" /proc/cpuinfo 2>/dev/null; then
     VIRT_ENV="VM"
-fi
+fi || true
 
 # Dotfiles Status Check
 DOTFILES_STATUS=""
