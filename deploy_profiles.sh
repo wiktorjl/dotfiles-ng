@@ -519,31 +519,17 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                 fi
 
 
-                # If there is a bin folder in the profile, link all scripts in it to ~/.local/bin
+                # If there is a bin folder in the profile, link all scripts in it to ~/.local/bin and /usr/local/bin
                 if [ -d "$profile_dir/bin" ]; then
                     print_progress "Linking scripts from profile bin directory..."
-                    mkdir -p ~/.local/bin
-                    
-                    # Clean dead symlinks first if clean_dead_links.sh exists
-                    if [ -f "$BASE_DIR/profiles/common/bin/clean_dead_links.sh" ]; then
-                        print_info "Cleaning dead symlinks in ~/.local/bin..."
-                        # Run non-interactively by piping 'y' to auto-confirm all deletions
-                        echo "y" | bash "$BASE_DIR/profiles/common/bin/clean_dead_links.sh" ~/.local/bin
-                    fi
-                    script_count=0
-                    for script in "$profile_dir/bin/"*; do
-                        if [ -f "$script" ]; then
-                            script_name=$(basename "$script")
-                            # Create a symlink in ~/.local/bin
-                            ln -sf "$(realpath "$script")" ~/.local/bin/"$script_name"
-                            print_success "Linked $script_name to ~/.local/bin"
-                            script_count=$((script_count + 1))
-                        fi
-                    done
-                    if [ $script_count -eq 0 ]; then
-                        print_info "No scripts found in bin directory"
+
+                    # Use link_bin_scripts.sh for consistent linking behavior
+                    # Links to both ~/.local/bin and /usr/local/bin (requires sudo)
+                    if [ -f "$BASE_DIR/link_bin_scripts.sh" ]; then
+                        bash "$BASE_DIR/link_bin_scripts.sh" "$profile" --non-interactive --system
                     else
-                        print_success "Linked $script_count scripts to ~/.local/bin"
+                        print_error "link_bin_scripts.sh not found!"
+                        exit 1
                     fi
                 fi
 

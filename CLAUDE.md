@@ -75,9 +75,10 @@ This is a dotfiles management system for Linux environments that provides automa
 - System files are symlinked to their proper locations with backup of originals
 
 ### Key Scripts
-- **deploy_all.sh** - Main orchestrator, runs complete deployment in correct order  
+- **deploy_all.sh** - Main orchestrator, runs complete deployment in correct order
 - **deploy_dotfiles.sh** - Handles dotfiles linking and system configuration only
-- **deploy_profiles.sh** - Interactive profile selector, reads package lists and executes init/post scripts
+- **deploy_profiles.sh** - Interactive profile selector, reads package lists, executes init/post scripts, and links bin scripts
+- **link_bin_scripts.sh** - Links profile bin scripts to ~/.local/bin and optionally /usr/local/bin (called by deploy_profiles.sh)
 - **lock_file.sh** - Helper script for file encryption/decryption using age
 - **post_deployment_config.sh** - Sets hostname and adds user to groups (docker, libvirt, kvm, etc.)
 
