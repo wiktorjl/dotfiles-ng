@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Script to list IP addresses of KVM virtual machines using ARP leases
+# Output format: VMNAME    IP_ADDRESS    MAC_ADDRESS    INTERFACE
+
 # --- Configuration ---
 LEASES_FILE="/var/lib/arpalert/arpalert.leases"
 
@@ -30,14 +33,12 @@ while read -r vmname; do
 
   # Use `virsh domstate` for a direct, reliable check of the VM's state.
   if [[ "$(virsh domstate "$vmname")" == "running" ]]; then
-    echo "VM: $vmname"
-    
     # Get interfaces, skipping the header and footer lines.
     # The `read` command here parses the line directly into variables.
     virsh domiflist "$vmname" | tail -n +3 | head -n -1 | while read -r iface type network model mac state; do
       # Skip interfaces without a MAC address
       [[ -z "$mac" ]] && continue
-      
+
       # Use bash parameter expansion for lowercasing the MAC address.
       mac_lower=${mac,,}
 
@@ -45,8 +46,8 @@ while read -r vmname; do
       ip=${leases_map[$mac_lower]}
 
       if [[ -n "$ip" ]]; then
-        # Use printf for safer, more reliable output formatting.
-        printf "  Interface: %-15s MAC: %s, IP: %s\n" "$iface" "$mac" "$ip"
+        # Output in consistent format: VMNAME IP MAC INTERFACE
+        printf "%-20s %-15s %-17s %s\n" "$vmname" "$ip" "$mac" "$iface"
       fi
     done
   fi

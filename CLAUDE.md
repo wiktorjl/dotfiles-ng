@@ -54,7 +54,7 @@ This is a dotfiles management system for Linux environments that provides automa
     - **packages/** - Text files listing packages to install (e.g., base.packages, net.packages)
     - **init-scripts/** - Scripts run during profile setup (e.g., adding repositories)
     - **post-scripts/** - Scripts run after package installation
-    - **bin/** - Scripts that get symlinked to ~/.local/bin
+    - **bin/** - Scripts that get symlinked to ~/.local/bin and /usr/local/bin during deployment
   - Available profiles:
     - **common** - Base packages, networking, system monitoring, security tools
     - **desktop** - GUI applications (Brave, Spotify, Bashimu)
@@ -105,11 +105,20 @@ Package files in `profiles/*/packages/` contain one package per line. Comments s
 
 ## Custom Scripts
 
-The `profiles/common/bin/` directory contains utility scripts that are symlinked to `~/.local/bin`:
+The `profiles/common/bin/` directory contains utility scripts that are symlinked to `~/.local/bin` and `/usr/local/bin` during deployment:
 - **sysrod.sh** - System status monitoring script
 - **check_ip.sh** - IP address checker
 - **create_backup.sh** - Backup creation utility
+- **clean_dead_links.sh** - Utility to clean dead symlinks from bin directories
 - Various proxy, browser, and system management scripts
+
+### Manual Bin Script Relinking
+
+After updating profile bin scripts, you can relink them manually:
+```bash
+./link_bin_scripts.sh <profile>              # Interactive mode, prompts for /usr/local/bin
+./link_bin_scripts.sh <profile> --system     # Also link to /usr/local/bin (requires sudo)
+```
 
 ## Non-Interactive Installation
 

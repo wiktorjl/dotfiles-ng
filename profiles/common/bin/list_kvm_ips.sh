@@ -4,6 +4,7 @@
 # Usage:
 #   list_kvm_ips.sh          # List IPs for all running VMs
 #   list_kvm_ips.sh <vm-name> # List IPs for specific VM
+# Output format: VMNAME    IP_ADDRESS    MAC_ADDRESS    INTERFACE
 
 VM_NAME="${1:-}"
 
@@ -21,27 +22,27 @@ get_vm_ips() {
     fi
 
     if [[ "$state" != "running" ]]; then
-        echo "VM: $vm (not running)"
+        printf "%-20s %-15s %-17s %s\n" "$vm" "-" "-" "(not running)"
         return 0
     fi
-
-    echo "VM: $vm"
 
     # Get IP addresses using ARP source
     local output
     output=$(sudo virsh domifaddr "$vm" --full --source arp 2>/dev/null)
 
     if [[ $? -eq 0 && -n "$output" ]]; then
-        # Skip the header lines and display interface info
+        # Skip the header lines and parse interface info
         echo "$output" | tail -n +3 | while IFS= read -r line; do
             [[ -z "$line" ]] && continue
-            echo "  $line"
+            # Parse the line: interface mac ip/prefix
+            read -r iface mac ipcidr <<< "$line"
+            # Extract just the IP without CIDR notation
+            ip="${ipcidr%/*}"
+            printf "%-20s %-15s %-17s %s\n" "$vm" "$ip" "$mac" "$iface"
         done
     else
-        echo "  No IP addresses found"
+        printf "%-20s %-15s %-17s %s\n" "$vm" "-" "-" "(no IP found)"
     fi
-
-    echo ""
 }
 
 # Main logic
