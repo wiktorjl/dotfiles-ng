@@ -5,3 +5,5 @@ gdb
 git
 gnupg2
 lldb
+libelf-dev
+libssl-dev
