@@ -8,3 +8,4 @@ lldb
 libelf-dev
 libssl-dev
 libdw-dev
+debhelper
