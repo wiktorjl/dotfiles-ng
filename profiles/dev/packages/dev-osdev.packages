@@ -28,3 +28,4 @@ coccinelle
 quilt
 patchutils
 diffstat
+xxd
