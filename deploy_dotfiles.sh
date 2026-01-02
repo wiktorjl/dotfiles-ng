@@ -108,6 +108,12 @@ if [ -f ~/.bash_profile ]; then
     backup_count=$((backup_count + 1))
 fi
 
+if [ -f ~/.motd ]; then
+    cp ~/.motd ~/.motd.bak
+    print_info "Backed up ~/.motd"
+    backup_count=$((backup_count + 1))
+fi
+
 if [ $backup_count -eq 0 ]; then
     print_info "No existing dotfiles found to backup"
 else
@@ -129,6 +135,7 @@ ln -sf ~/dotfiles-ng/dotfiles/tmux.conf ~/.tmux.conf && echo -e "${CYAN}|${NC} $
 ln -sf ~/dotfiles-ng/dotfiles/tmux-sensible.sh ~/.tmux-sensible.sh && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} tmux-sensible.sh -> ~/.tmux-sensible.sh ${CYAN}|${NC}"
 ln -sf ~/dotfiles-ng/config_vars ~/.config_vars && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} config_vars -> ~/.config_vars         ${CYAN}|${NC}"
 ln -sf ~/dotfiles-ng/config_vars.secret ~/.config_vars.secret && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} config_vars.secret -> ~/.config_vars.secret ${CYAN}|${NC}"
+ln -sf ~/dotfiles-ng/motd ~/.motd && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} motd -> ~/.motd ${CYAN}|${NC}"
 
 echo -e "${CYAN}+-------------------------------------------+${NC}"
 print_success "All symbolic links created successfully."
