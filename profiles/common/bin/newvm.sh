@@ -93,6 +93,39 @@ guest_exec() {
     fi
 }
 
+# Function to add SSH config entry
+add_ssh_config() {
+    local hostname=$1
+    local ip=$2
+    local ssh_config="$HOME/.ssh/config"
+
+    # Ensure .ssh directory exists
+    mkdir -p "$HOME/.ssh"
+    chmod 700 "$HOME/.ssh"
+
+    # Check if entry already exists
+    if grep -q "^Host $hostname$" "$ssh_config" 2>/dev/null; then
+        warn "SSH config entry for '$hostname' already exists, skipping"
+        return 0
+    fi
+
+    # Add new entry
+    log "Adding SSH config entry for '$hostname'..."
+    cat >> "$ssh_config" << EOF
+
+Host $hostname
+    Hostname $ip
+    Port 22
+    User user
+    IdentityFile $HOME/.ssh/id_homelan
+    ForwardX11 yes
+    ForwardX11Trusted yes
+EOF
+
+    chmod 600 "$ssh_config"
+    log "SSH config entry added successfully"
+}
+
 # Function to get VM IP address
 get_vm_ip() {
     local domain=$1
@@ -176,6 +209,9 @@ log "Retrieving IP address..."
 ip_address=$(get_vm_ip "$NEW_DOMAIN")
 
 if [ -n "$ip_address" ]; then
+    # Add SSH config entry
+    add_ssh_config "$NEW_HOSTNAME" "$ip_address"
+
     log "VM setup completed successfully!"
     echo ""
     echo "==================================="
@@ -183,6 +219,7 @@ if [ -n "$ip_address" ]; then
     echo "  Name: $NEW_DOMAIN"
     echo "  Hostname: $NEW_HOSTNAME"
     echo "  IP Address: $ip_address"
+    echo "  SSH: ssh $NEW_HOSTNAME"
     echo "==================================="
     echo ""
     echo "IP Address: $ip_address"
