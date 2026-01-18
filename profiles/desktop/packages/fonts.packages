@@ -1,30 +1,10 @@
-# Console and terminal fonts
-fonts-terminus
-fonts-dejavu
-fonts-liberation
-
-# Programming and monospace fonts
+fonts-noto-core 
+fonts-noto-mono 
+fonts-noto-color-emoji
 fonts-firacode
-fonts-jetbrains-mono
 fonts-hack
-fonts-anonymous-pro
-#fonts-source-code-pro
-
-# Display and UI fonts
-fonts-noto
-# fonts-ubuntu  # Not available in many repositories
-fonts-roboto
-fonts-lato
-
-# Icon fonts
-fonts-font-awesome
-
-# Additional fonts (if available)
-fonts-b612
-fonts-3270
-fonts-adobe-sourcesans3
-fonts-agave
-fonts-lmodern
-fonts-material-design-icons-iconfont
-fonts-monofur
-fonts-mononoki
+fonts-jetbrains-mono
+fonts-cascadia-code
+fonts-powerline
+fonts-noto-cjk
+fonts-noto-extra
