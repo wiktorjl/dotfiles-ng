@@ -24,7 +24,7 @@ alias DC="distrobox create --image "
 alias DE="distrobox enter"
 alias DL="distrobox list"
 
-alias cat="batcat -fn"
+# alias cat="batcat -fn"
 alias ?="bashimu-cli"
 
 fDK() { distrobox stop $1 && distrobox rm $1; }
@@ -36,6 +36,8 @@ alias td="tmux detach"
 
 alias cloak="tar czf /tmp/`basename $(pwd)`.tar.gz $(pwd) && age --passphrase -o `basename $(pwd)`.tar.gz.age /tmp/`basename $(pwd)`.tar.gz && rm -rf /tmp/`basename $(pwd)`.tar.gz"
 alias uncloak="age --decrypt -o ./$1.tar.gz ./$1.tar.gz.age && tar xzf ./$1.tar.gz && rm -rf ./$1.tar.gz && rm -rf ./$1.tar.gz.age"
+
+alias superclaude="claude --dangerously-skip-permissions"
 
 # Source .aliases.local if it exists
 if [ -f ~/.aliases.local ]; then
