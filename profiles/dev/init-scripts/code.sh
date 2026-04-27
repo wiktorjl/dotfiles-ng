@@ -14,7 +14,7 @@ else
     if [ $? -ne 0 ]; then
         echo "Error: Failed to download or dearmor Microsoft GPG key."
         rm -f microsoft.gpg # Clean up
-        return 1
+        exit 1
     fi
 
     echo "2. Installing Microsoft GPG key..."
@@ -23,7 +23,7 @@ else
     if [ $? -ne 0 ]; then
         echo "Error: Failed to install Microsoft GPG key."
         rm -f microsoft.gpg # Clean up
-        return 1
+        exit 1
     fi
     rm -f microsoft.gpg # Clean up the temporary gpg file
 
@@ -33,7 +33,7 @@ else
         echo "Error: Failed to add VS Code repository."
         # Consider removing the key and list file if repo add fails
         sudo rm -f /etc/apt/keyrings/microsoft-archive-keyring.gpg /etc/apt/sources.list.d/vscode.list
-        return 1
+        exit 1
     fi
     echo "VS Code repository setup completed successfully."
 fi

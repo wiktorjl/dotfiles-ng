@@ -8,6 +8,8 @@
 
 set -euo pipefail
 
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -46,11 +48,11 @@ if [ -z "$PROFILE_NAME" ]; then
     echo -e "${RED}Error: No profile name provided${NC}"
     echo "Usage: $0 <profile_name> [--non-interactive] [--system]"
     echo "Available profiles:"
-    ls -d profiles/*/ 2>/dev/null | xargs -n1 basename || echo "  No profiles found"
+    find "$BASE_DIR/profiles" -mindepth 1 -maxdepth 1 -type d -exec basename {} \; 2>/dev/null || echo "  No profiles found"
     exit 1
 fi
 
-PROFILE_BIN_DIR="$(pwd)/profiles/${PROFILE_NAME}/bin"
+PROFILE_BIN_DIR="$BASE_DIR/profiles/${PROFILE_NAME}/bin"
 LOCAL_BIN_DIR="${HOME}/.local/bin"
 
 # Ask if scripts should also be linked to /usr/local/bin (only in interactive mode)
@@ -69,7 +71,7 @@ if [ "$LINK_SYSTEM" = true ]; then
 fi
 
 # Validate profile exists and has bin directory
-if [ ! -d "profiles/${PROFILE_NAME}" ]; then
+if [ ! -d "$BASE_DIR/profiles/${PROFILE_NAME}" ]; then
     echo -e "${RED}Error: Profile '${PROFILE_NAME}' does not exist${NC}"
     exit 1
 fi
@@ -84,12 +86,12 @@ clean_dead_links() {
     local bin_dir="$1"
     local use_sudo="$2"
 
-    echo -e "${GREEN}Cleaning dead symlinks in ${bin_dir}...${NC}"
+    echo -e "${GREEN}Cleaning dead symlinks in ${bin_dir}...${NC}" >&2
     local dead_links_count=0
 
     while IFS= read -r -d '' link; do
         if [ ! -e "$link" ]; then
-            echo "  Removing dead link: $(basename "$link")"
+            echo "  Removing dead link: $(basename "$link")" >&2
             if [ "$use_sudo" = true ]; then
                 sudo rm "$link"
             else
@@ -100,12 +102,25 @@ clean_dead_links() {
     done < <(find "${bin_dir}" -maxdepth 1 -type l -print0 2>/dev/null) || true
 
     if [ $dead_links_count -eq 0 ]; then
-        echo "  No dead links found"
+        echo "  No dead links found" >&2
     else
-        echo -e "  ${GREEN}Removed ${dead_links_count} dead link(s)${NC}"
+        echo -e "  ${GREEN}Removed ${dead_links_count} dead link(s)${NC}" >&2
     fi
 
     echo "$dead_links_count"
+}
+
+backup_existing_target() {
+    local target="$1"
+    local use_sudo="$2"
+    local backup_target="${target}.bak.$(date +%Y%m%d_%H%M%S)"
+
+    echo "  Moving existing $(basename "$target") to $(basename "$backup_target")" >&2
+    if [ "$use_sudo" = true ]; then
+        sudo mv "$target" "$backup_target"
+    else
+        mv "$target" "$backup_target"
+    fi
 }
 
 # Function to link scripts to a directory
@@ -113,7 +128,7 @@ link_scripts() {
     local bin_dir="$1"
     local use_sudo="$2"
 
-    echo -e "\n${GREEN}Linking scripts from ${PROFILE_NAME}/bin to ${bin_dir}...${NC}"
+    echo -e "\n${GREEN}Linking scripts from ${PROFILE_NAME}/bin to ${bin_dir}...${NC}" >&2
     local linked_count=0
     local skipped_count=0
 
@@ -122,19 +137,14 @@ link_scripts() {
             script_name=$(basename "$script")
             target="${bin_dir}/${script_name}"
 
-            # Remove existing link or file if it exists
+            # Move conflicting links or files aside before creating the managed symlink.
             if [ -e "$target" ] || [ -L "$target" ]; then
                 if [ -L "$target" ] && [ "$(readlink -f "$target")" = "$(readlink -f "$script")" ]; then
-                    echo "  Skipping ${script_name} (already linked correctly)"
+                    echo "  Skipping ${script_name} (already linked correctly)" >&2
                     skipped_count=$((skipped_count + 1))
                     continue
                 fi
-                echo "  Removing existing: ${script_name}"
-                if [ "$use_sudo" = true ]; then
-                    sudo rm "$target"
-                else
-                    rm "$target"
-                fi
+                backup_existing_target "$target" "$use_sudo"
             fi
 
             # Create symlink
@@ -143,7 +153,7 @@ link_scripts() {
             else
                 ln -s "$script" "$target"
             fi
-            echo "  Linked: ${script_name}"
+            echo "  Linked: ${script_name}" >&2
             linked_count=$((linked_count + 1))
         fi
     done

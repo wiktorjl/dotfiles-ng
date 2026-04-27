@@ -249,7 +249,6 @@ Check logs:
 
 ## TODO List
 
-- bashimu installation
 - bootstrap file
 - key packs deployment (and bootstrap)
 - media packs deployment

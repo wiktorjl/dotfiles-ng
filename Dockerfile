@@ -96,12 +96,4 @@ RUN echo '#!/bin/bash' > /home/bob/ssh.sh && \
 RUN echo 'echo "You can ssh to this machine using ./ssh.sh"' >> /home/bob/.bashrc
 RUN echo 'echo "Run ./deploy_all.sh to test dotfiles."' >> /home/bob/.bashrc 
 
-RUN echo "#!/bin/bash" > /home/bob/test_bashimu.sh && \
-    echo "sudo apt update" >> /home/bob/test_bashimu.sh && \
-    echo "sudo apt install -y pipx" >> /home/bob/test_bashimu.sh && \
-    echo "$HOME/dotfiles-ng/profiles/desktop/init-scripts/bashimu.sh" >> /home/bob/test_bashimu.sh && \
-    echo "$HOME/apply_dotfiles.sh" >> /home/bob/test_bashimu.sh && \
-    chmod +x /home/bob/test_bashimu.sh
-
-
 CMD ["/bin/bash", "-l"]

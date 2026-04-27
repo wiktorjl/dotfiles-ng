@@ -1,11 +1,12 @@
 #!/bin/bash
+set -o pipefail
 
 # Set environment variables to prevent debconf warnings
 export DEBIAN_FRONTEND=noninteractive
 export DEBCONF_NONINTERACTIVE_SEEN=true
 
 # Define the base directory for profiles
-BASE_DIR="/home/$USER/dotfiles-ng"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # Setup logging
 LOG_DIR="$BASE_DIR/logs"
@@ -39,7 +40,7 @@ log_command() {
     log_message "COMMAND: $desc"
     log_message "EXECUTING: $cmd"
     eval "$cmd" 2>&1 | tee -a "$LOG_FILE"
-    local exit_code=$?
+    local exit_code=${PIPESTATUS[0]}
     if [ $exit_code -ne 0 ]; then
         log_error "Command failed with exit code $exit_code: $cmd"
     fi
@@ -378,7 +379,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                                 print_success "Init script '$(basename "$init_script")' completed successfully"
                             else
                                 print_error "Failed to run init script '$(basename "$init_script")'."
-                                continue
+                                exit 1
                             fi
                         fi
                     done
@@ -388,7 +389,10 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                         print_success "Completed $init_script_count init scripts for profile '$profile'"
                         # Run apt update after init scripts to ensure new repositories are available
                         print_info "Updating package lists after init scripts..."
-                        log_command "sudo -E apt-get update -qq" "Post-init scripts package list update"
+                        if ! log_command "sudo -E apt-get update -qq" "Post-init scripts package list update"; then
+                            print_error "Failed to update package lists after init scripts."
+                            exit 1
+                        fi
                     fi
                 else
                     print_info "No init-scripts directory found for profile '$profile'. Skipping."
@@ -476,7 +480,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                             print_success "All available packages installed successfully"
                             log_message "SUCCESS: All available packages installed successfully"
                         else
-                            exit_code=$?
+                            exit_code=${PIPESTATUS[0]}
                             log_error "Batch installation failed with exit code $exit_code"
                             print_warning "Batch installation failed. Falling back to individual package installation..."
                             # Fallback: install packages individually if batch fails
@@ -486,6 +490,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                                     print_success "$package installed"
                                 else
                                     print_error "Failed to install $package"
+                                    exit 1
                                 fi
                             done
                         fi
@@ -510,7 +515,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                             print_success "Script '$(basename "$script")' completed"
                         else
                             print_error "Failed to run script '$(basename "$script")'."
-                            continue            
+                            exit 1
                         fi
                     fi
                 done
@@ -526,7 +531,10 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                     # Use link_bin_scripts.sh for consistent linking behavior
                     # Links to both ~/.local/bin and /usr/local/bin (requires sudo)
                     if [ -f "$BASE_DIR/link_bin_scripts.sh" ]; then
-                        bash "$BASE_DIR/link_bin_scripts.sh" "$profile" --non-interactive --system
+                        if ! bash "$BASE_DIR/link_bin_scripts.sh" "$profile" --non-interactive --system; then
+                            print_error "Failed to link scripts for profile '$profile'."
+                            exit 1
+                        fi
                     else
                         print_error "link_bin_scripts.sh not found!"
                         exit 1
@@ -589,6 +597,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
             else
                 print_warning "⚠️  Some packages failed to install. Check logs above for details."
                 log_message "WARNING: $total_failed packages failed to install"
+                exit 1
             fi
         else
             print_info "No packages were requested for installation."

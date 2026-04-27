@@ -3,7 +3,8 @@
 # Dotfiles Log Review Tool
 # This script helps you review deployment logs and errors
 
-LOG_DIR="/home/$USER/dotfiles-ng/logs"
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+LOG_DIR="$BASE_DIR/logs"
 
 # Colors for output
 RED='\033[0;31m'

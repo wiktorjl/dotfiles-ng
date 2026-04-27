@@ -55,18 +55,6 @@ export PATH=$PATH:$HOME/.local/bin:$HOME/scripts:$HOME/scripts/virsh
 #     echo "No SSH keys found in $HOME/.ssh. Skipping keychain setup."
 # fi
 
-
-# # If bashimu installed in /usr/local/bin, source it
-# if [ -f /usr/local/bin/bashimu ]; then
-#     if [ -z "$BASHIMU_SOURCED" ]; then
-#         export BASHIMU_SOURCED=1
-#         source ~/.bashimurc
-#     fi
-# else
-#     echo "Bashimu not found in /usr/local/bin. Please install it to use bashimu features."
-# fi
-
-
 # Check if DOTFILES_REQUEST_TMUX is set to 1
 if [ -z "$DOTFILES_REQUEST_TMUX" ]; then
     DOTFILES_REQUEST_TMUX=0

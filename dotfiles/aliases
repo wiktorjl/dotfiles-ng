@@ -25,7 +25,6 @@ alias DE="distrobox enter"
 alias DL="distrobox list"
 
 # alias cat="batcat -fn"
-alias ?="bashimu-cli"
 
 fDK() { distrobox stop $1 && distrobox rm $1; }
 

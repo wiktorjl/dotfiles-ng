@@ -57,7 +57,7 @@ This is a dotfiles management system for Linux environments that provides automa
     - **bin/** - Scripts that get symlinked to ~/.local/bin and /usr/local/bin during deployment
   - Available profiles:
     - **common** - Base packages, networking, system monitoring, security tools
-    - **desktop** - GUI applications (Brave, Spotify, Bashimu)
+    - **desktop** - GUI applications (Brave, Spotify)
     - **dev** - Development tools (VS Code, languages: Python, Go, Rust, Ruby)
     - **docker** - Docker installation and configuration
     - **pentest** - Security testing tools (Metasploit, Burp, SecLists)
@@ -130,7 +130,6 @@ echo "y" | ./deploy_dotfiles.sh   # Auto-confirms base package installation
 ## TODO Items
 
 From README.md:
-- bashimu installation
 - bootstrap file
 - key packs deployment (and bootstrap)
 - media packs deployment

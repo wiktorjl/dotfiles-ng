@@ -1,7 +1,10 @@
 #!/bin/bash
 
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+NON_INTERACTIVE=false
+
 # Setup logging
-LOG_DIR="/home/$USER/dotfiles-ng/logs"
+LOG_DIR="$BASE_DIR/logs"
 LOG_FILE="$LOG_DIR/deploy_dotfiles_$(date +%Y%m%d_%H%M%S).log"
 ERROR_LOG="$LOG_DIR/errors_$(date +%Y%m%d_%H%M%S).log"
 mkdir -p "$LOG_DIR"
@@ -67,10 +70,21 @@ print_banner() {
 }
 # Check if running standalone or from another script
 STANDALONE=true
-if [ "$1" = "--no-banner" ]; then
-    STANDALONE=false
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --no-banner)
+            STANDALONE=false
+            ;;
+        --non-interactive)
+            NON_INTERACTIVE=true
+            ;;
+        *)
+            print_error "Unknown argument: $1"
+            exit 1
+            ;;
+    esac
     shift
-fi
+done
 
 if [ "$STANDALONE" = true ]; then
     clear
@@ -127,15 +141,15 @@ echo -e "${CYAN}+-------------------------------------------+${NC}"
 echo -e "${CYAN}|${NC} ${BOLD}Creating symbolic links...${NC}              ${CYAN}|${NC}"
 echo -e "${CYAN}+-------------------------------------------+${NC}"
 
-ln -sf ~/dotfiles-ng/dotfiles/bashrc ~/.bashrc && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bashrc -> ~/.bashrc                   ${CYAN}|${NC}"
-ln -sf ~/dotfiles-ng/dotfiles/bashrc_candidates ~/.bashrc_candidates && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bashrc_candidates -> ~/.bashrc_candidates ${CYAN}|${NC}"
-ln -sf ~/dotfiles-ng/dotfiles/bash-sensible ~/.bash-sensible && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bash-sensible -> ~/.bash-sensible     ${CYAN}|${NC}"
-ln -sf ~/dotfiles-ng/dotfiles/aliases ~/.aliases && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} aliases -> ~/.aliases                 ${CYAN}|${NC}"
-ln -sf ~/dotfiles-ng/dotfiles/tmux.conf ~/.tmux.conf && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} tmux.conf -> ~/.tmux.conf             ${CYAN}|${NC}"
-ln -sf ~/dotfiles-ng/dotfiles/tmux-sensible.sh ~/.tmux-sensible.sh && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} tmux-sensible.sh -> ~/.tmux-sensible.sh ${CYAN}|${NC}"
-ln -sf ~/dotfiles-ng/config_vars ~/.config_vars && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} config_vars -> ~/.config_vars         ${CYAN}|${NC}"
-ln -sf ~/dotfiles-ng/config_vars.secret ~/.config_vars.secret && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} config_vars.secret -> ~/.config_vars.secret ${CYAN}|${NC}"
-ln -sf ~/dotfiles-ng/motd ~/.motd && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} motd -> ~/.motd ${CYAN}|${NC}"
+ln -sf "$BASE_DIR/dotfiles/bashrc" ~/.bashrc && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bashrc -> ~/.bashrc                   ${CYAN}|${NC}"
+ln -sf "$BASE_DIR/dotfiles/bashrc_candidates" ~/.bashrc_candidates && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bashrc_candidates -> ~/.bashrc_candidates ${CYAN}|${NC}"
+ln -sf "$BASE_DIR/dotfiles/bash-sensible" ~/.bash-sensible && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bash-sensible -> ~/.bash-sensible     ${CYAN}|${NC}"
+ln -sf "$BASE_DIR/dotfiles/aliases" ~/.aliases && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} aliases -> ~/.aliases                 ${CYAN}|${NC}"
+ln -sf "$BASE_DIR/dotfiles/tmux.conf" ~/.tmux.conf && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} tmux.conf -> ~/.tmux.conf             ${CYAN}|${NC}"
+ln -sf "$BASE_DIR/dotfiles/tmux-sensible.sh" ~/.tmux-sensible.sh && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} tmux-sensible.sh -> ~/.tmux-sensible.sh ${CYAN}|${NC}"
+ln -sf "$BASE_DIR/config_vars" ~/.config_vars && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} config_vars -> ~/.config_vars         ${CYAN}|${NC}"
+ln -sf "$BASE_DIR/config_vars.secret" ~/.config_vars.secret && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} config_vars.secret -> ~/.config_vars.secret ${CYAN}|${NC}"
+ln -sf "$BASE_DIR/dotfiles/motd" ~/.motd && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} motd -> ~/.motd ${CYAN}|${NC}"
 
 echo -e "${CYAN}+-------------------------------------------+${NC}"
 print_success "All symbolic links created successfully."
@@ -168,7 +182,7 @@ fi
 
 # Check if there are any .age files to decrypt
 age_files_exist=false
-for file in ~/dotfiles-ng/*.age; do
+for file in "$BASE_DIR"/*.age; do
     if [ -f "$file" ]; then
         age_files_exist=true
         break
@@ -178,7 +192,7 @@ done
 # If .age files exist, ask user if they want to decrypt them
 if [ "$age_files_exist" = true ]; then
     print_warning "Encrypted files (.age) detected in the repository."
-    if [ -t 0 ]; then
+    if [ "$NON_INTERACTIVE" = false ] && [ -t 0 ]; then
         # Terminal is interactive
         echo -e "${BOLD}${YELLOW}Do you want to decrypt them now?${NC} ${CYAN}[y/N]:${NC}"
         echo -n "=> "
@@ -193,11 +207,11 @@ if [ "$age_files_exist" = true ]; then
         print_progress "Decrypting encrypted files..."
         decrypt_count=0
         failed_count=0
-        for file in ~/dotfiles-ng/*.age; do
+        for file in "$BASE_DIR"/*.age; do
             if [ -f "$file" ]; then
                 # Decrypt the file and save it with .secret extension
                 print_info "Decrypting $(basename "$file")..."
-                $HOME/dotfiles-ng/lock_file.sh -d "$file"
+                "$BASE_DIR/profiles/common/bin/lock_file.sh" -d "$file"
                 if [ $? -eq 0 ]; then
                     print_success "Decrypted $(basename "$file") successfully."
                     decrypt_count=$((decrypt_count + 1))
@@ -220,11 +234,11 @@ else
     print_info "No encrypted files found."
 fi
 
-# sysfiles-full is a representation of our custom system config files, rooted at /
-# So, for example, sysfiles-full/etc/ssh/ssh_config will be linked to /etc/ssh/ssh_config
+# sysfiles-full is a representation of our custom system config files, rooted at /.
+# For example, sysfiles-full/etc/ssh/ssh_config will be installed to /etc/ssh/ssh_config.
 
 # Function to validate and process a single system file
-link_system_file() {
+install_system_file() {
     source_file="$1"
     sysfiles_root="$2"
     relative_path="${source_file#$sysfiles_root/}"
@@ -243,45 +257,39 @@ link_system_file() {
         return 1
     fi
     
-    # Backup existing file if it's not already a symlink
-    if [ -f "$target_file" ] && [ ! -L "$target_file" ]; then
+    # Move any existing file or symlink aside before installing the managed copy.
+    if [ -e "$target_file" ] || [ -L "$target_file" ]; then
+        if [ ! -L "$target_file" ] && sudo cmp -s "$source_file" "$target_file"; then
+            print_info "$target_file already matches $(basename "$source_file"), skipping."
+            return 0
+        fi
         backup_file="${target_file}.bak.$(date +%Y%m%d_%H%M%S)"
-        print_warning "Backing up $target_file to $backup_file"
-        if ! sudo cp -f "$target_file" "$backup_file"; then
-            echo "Warning: Failed to backup $target_file, continuing..."
+        print_warning "Moving existing $target_file to $backup_file"
+        if ! sudo mv "$target_file" "$backup_file"; then
+            echo "Error: Failed to move existing $target_file"
+            return 1
         fi
     fi
     
-    # Get source file metadata before creating symlink
+    # Preserve source mode, but make installed system files root-owned.
     source_perms=$(stat -c "%a" "$source_file" 2>/dev/null || echo "644")
-    source_owner=$(stat -c "%U:%G" "$source_file" 2>/dev/null || echo "root:root")
     
-    # Create symlink with error handling
-    print_info "Linking $(basename "$source_file") -> $target_file"
-    if ! sudo ln -sf "$source_file" "$target_file"; then
-        echo "Error: Failed to create symlink $target_file"
+    print_info "Installing $(basename "$source_file") -> $target_file"
+    if ! sudo install -o root -g root -m "$source_perms" "$source_file" "$target_file"; then
+        echo "Error: Failed to install $target_file"
         return 1
     fi
-    
-    # Apply permissions and ownership with error handling
-    if ! sudo chmod "$source_perms" "$target_file"; then
-        echo "Warning: Failed to set permissions on $target_file"
-    fi
-    
-    if ! sudo chown "$source_owner" "$target_file"; then
-        echo "Warning: Failed to set ownership on $target_file"
-    fi
-    
+
     return 0
 }
 
 # Main system files linking logic
 link_system_files() {
-    sysfiles_dir="$HOME/dotfiles-ng/sysfiles-full"
+    sysfiles_dir="$BASE_DIR/sysfiles-full"
     processed_count=0
     failed_count=0
     
-    echo "Linking system configuration files from sysfiles-full..."
+    echo "Installing system configuration files from sysfiles-full..."
     
     # Validate sysfiles directory exists
     if [ ! -d "$sysfiles_dir" ]; then
@@ -296,7 +304,7 @@ link_system_files() {
     # Process each file from the temporary file
     while IFS= read -r source_file; do
         if [ -n "$source_file" ]; then
-            if link_system_file "$source_file" "$sysfiles_dir"; then
+            if install_system_file "$source_file" "$sysfiles_dir"; then
                 processed_count=$((processed_count + 1))
             else
                 failed_count=$((failed_count + 1))
@@ -309,14 +317,14 @@ link_system_files() {
     
     # Report results
     if [ $processed_count -gt 0 ]; then
-        print_success "System files linking completed: $processed_count successful"
+        print_success "System files installation completed: $processed_count successful"
     fi
     if [ $failed_count -gt 0 ]; then
-        print_warning "$failed_count files failed to link"
+        print_warning "$failed_count files failed to install"
     fi
     
     if [ "$failed_count" -gt 0 ]; then
-        echo "Warning: Some system files failed to link. Check the output above for details."
+        echo "Warning: Some system files failed to install. Check the output above for details."
         return 1
     fi
     
@@ -324,7 +332,10 @@ link_system_files() {
 }
 
 # Execute system files linking
-link_system_files
+if ! link_system_files; then
+    print_error "System files installation failed."
+    exit 1
+fi
 
 # Now do some customizations
 

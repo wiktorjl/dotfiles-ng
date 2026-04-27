@@ -3,8 +3,10 @@
 # Main deployment orchestrator script
 # This script runs the complete deployment process in the correct order
 
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
 # Setup logging
-LOG_DIR="/home/$USER/dotfiles-ng/logs"
+LOG_DIR="$BASE_DIR/logs"
 LOG_FILE="$LOG_DIR/deploy_all_$(date +%Y%m%d_%H%M%S).log"
 mkdir -p "$LOG_DIR"
 
@@ -203,7 +205,7 @@ main() {
     if [ -t 0 ]; then
         # Interactive: let user choose profiles
         print_info "Launching profile deployment manager..."
-        ./deploy_profiles.sh
+        "$BASE_DIR/deploy_profiles.sh"
         if [ $? -ne 0 ]; then
             print_error "Profile deployment failed"
             exit 1
@@ -211,7 +213,7 @@ main() {
     else
         # Non-interactive: install common profile only
         print_info "Installing common profile (non-interactive mode)..."
-        ./deploy_profiles.sh common
+        "$BASE_DIR/deploy_profiles.sh" common
         if [ $? -ne 0 ]; then
             print_error "Profile deployment failed"
             exit 1
@@ -229,10 +231,10 @@ main() {
     
     if [ -t 0 ]; then
         # Interactive mode: run deploy_dotfiles.sh with user interaction
-        echo "y" | ./deploy_dotfiles.sh --no-banner
+        "$BASE_DIR/deploy_dotfiles.sh" --no-banner
     else
-        # Non-interactive mode: run deploy_dotfiles.sh with auto-confirmation
-        echo "y" | ./deploy_dotfiles.sh --no-banner
+        # Non-interactive mode: skip prompts that require a terminal
+        "$BASE_DIR/deploy_dotfiles.sh" --no-banner --non-interactive
     fi
     
     if [ $? -eq 0 ]; then
@@ -254,7 +256,7 @@ main() {
         
         if [ "$config_answer" = "y" ]; then
             print_progress "Running post-deployment configuration..."
-            ./post_deployment_config.sh
+            "$BASE_DIR/post_deployment_config.sh"
         else
             print_info "Skipping post-deployment configuration"
         fi
