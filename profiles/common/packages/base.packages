@@ -5,6 +5,7 @@ bash
 bash-completion
 bat
 bc
+glow
 gpg
 gpg-agent
 gpgconf
