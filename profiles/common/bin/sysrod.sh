@@ -49,21 +49,33 @@ get_fallback_status() {
     echo -e "${GREEN}${DECO_LEFT} ${USER_HOST} | ${DISTRO} | KERNEL: ${KERNEL} ${DECO_RIGHT}${NC} ${YELLOW}[UPDATING...]${NC}"
 }
 
-# Check if cache exists and is fresh
+# Check if cache exists and is fresh. The cache format is:
+#   line 1: unix timestamp
+#   line 2: literal "---" separator
+#   line 3..: rendered status (already contains escape sequences)
+# We deliberately read it as data — never `source` it — because the writer
+# embeds $(hostname) and other unsanitised values.
 if [ -f "$CACHE_FILE" ]; then
-    # Read cache
-    source "$CACHE_FILE"
+    TIMESTAMP=""
+    STATUS_LINE=""
+    if IFS= read -r TIMESTAMP < "$CACHE_FILE" && [[ "$TIMESTAMP" =~ ^[0-9]+$ ]]; then
+        STATUS_LINE=$(tail -n +3 "$CACHE_FILE")
+    fi
 
-    CURRENT_TIME=$(date +%s)
-    CACHE_AGE=$((CURRENT_TIME - TIMESTAMP))
-
-    if [ $CACHE_AGE -lt $CACHE_MAX_AGE ]; then
-        # Cache is fresh - display it
-        echo -e "${STATUS_LINE}"
-    else
-        # Cache is stale - display with indicator and trigger update
-        echo -e "${STATUS_LINE} ${YELLOW}[STALE - updating...]${NC}"
+    if [ -z "$TIMESTAMP" ] || [ -z "$STATUS_LINE" ]; then
+        # Corrupt cache - treat as missing
+        get_fallback_status
         trigger_update
+    else
+        CURRENT_TIME=$(date +%s)
+        CACHE_AGE=$((CURRENT_TIME - TIMESTAMP))
+
+        if [ $CACHE_AGE -lt $CACHE_MAX_AGE ]; then
+            echo -e "${STATUS_LINE}"
+        else
+            echo -e "${STATUS_LINE} ${YELLOW}[STALE - updating...]${NC}"
+            trigger_update
+        fi
     fi
 else
     # No cache exists - show fallback and trigger initial update

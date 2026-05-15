@@ -111,38 +111,35 @@ if [ "$STANDALONE" = true ]; then
     echo
 fi
 
-# First backup original files
+# First backup original files.
+#
+# Safety: `-P` so symlinks are copied as symlinks, not dereferenced — without
+# this, a symlink planted at ~/.bashrc pointing at ~/.ssh/id_rsa would have
+# its target's contents copied into ~/.bashrc.bak (world-readable by default).
+# We also use [ -e ] (not [ -f ]) plus -L so a symlink targeting a missing
+# path is still backed up rather than silently overwritten. The .bak filename
+# is timestamped so consecutive runs never overwrite prior backups.
 print_progress "Backing up original dotfiles (skip if do not exist)..."
 backup_count=0
-if [ -f ~/.tmux.conf ]; then
-    cp ~/.tmux.conf ~/.tmux.conf.bak
-    print_info "Backed up ~/.tmux.conf"
-    backup_count=$((backup_count + 1))
-fi
+backup_ts="$(date +%Y%m%d_%H%M%S)"
+backup_dotfile() {
+    local path="$1"
+    if [ -e "$path" ] || [ -L "$path" ]; then
+        local dest="${path}.bak.${backup_ts}"
+        if cp -P "$path" "$dest"; then
+            print_info "Backed up $path -> $dest"
+            backup_count=$((backup_count + 1))
+        else
+            print_warning "Failed to back up $path"
+        fi
+    fi
+}
 
-if [ -f ~/.bashrc ]; then
-    cp ~/.bashrc ~/.bashrc.bak
-    print_info "Backed up ~/.bashrc"
-    backup_count=$((backup_count + 1))
-fi
-
-if [ -f ~/.aliases ]; then
-    cp ~/.aliases ~/.aliases.bak
-    print_info "Backed up ~/.aliases"
-    backup_count=$((backup_count + 1))
-fi
-
-if [ -f ~/.bash_profile ]; then
-    cp ~/.bash_profile ~/.bash_profile.bak
-    print_info "Backed up ~/.bash_profile"
-    backup_count=$((backup_count + 1))
-fi
-
-if [ -f ~/.motd ]; then
-    cp ~/.motd ~/.motd.bak
-    print_info "Backed up ~/.motd"
-    backup_count=$((backup_count + 1))
-fi
+backup_dotfile ~/.tmux.conf
+backup_dotfile ~/.bashrc
+backup_dotfile ~/.aliases
+backup_dotfile ~/.bash_profile
+backup_dotfile ~/.motd
 
 if [ $backup_count -eq 0 ]; then
     print_info "No existing dotfiles found to backup"
@@ -250,26 +247,59 @@ fi
 # sysfiles-full is a representation of our custom system config files, rooted at /.
 # For example, sysfiles-full/etc/ssh/ssh_config will be installed to /etc/ssh/ssh_config.
 
+# Pick the install mode for a system file based on its target path. We do
+# NOT read the mode from the source file in the repo because that lets a
+# user-writable repo entry (e.g. `sysfiles-full/etc/cron.d/zz_pwn` at 0755)
+# get root-installed at its repo-side mode — direct user→root via the next
+# deploy. Instead, only well-known sensitive prefixes get reduced modes, and
+# everything else falls back to 0644.
+target_mode_for() {
+    local target="$1"
+    case "$target" in
+        /etc/cron.d/*|/etc/cron.hourly/*|/etc/cron.daily/*|/etc/cron.weekly/*|/etc/cron.monthly/*)
+            echo 0644 ;;
+        /etc/sudoers.d/*)
+            echo 0440 ;;
+        /etc/ssh/sshd_config|/etc/ssh/ssh_host_*_key)
+            echo 0600 ;;
+        /etc/ssh/*)
+            echo 0644 ;;
+        /etc/profile.d/*.sh|/etc/update-motd.d/*)
+            echo 0755 ;;
+        *)
+            echo 0644 ;;
+    esac
+}
+
 # Function to validate and process a single system file
 install_system_file() {
     source_file="$1"
     sysfiles_root="$2"
-    relative_path="${source_file#$sysfiles_root/}"
+    # Canonicalise the source so symlinks under sysfiles-full can't redirect
+    # the relative-path computation outside the managed tree.
+    local resolved_source resolved_root
+    resolved_source="$(readlink -f "$source_file")"
+    resolved_root="$(readlink -f "$sysfiles_root")"
+    if [[ "$resolved_source" != "$resolved_root"/* ]]; then
+        echo "Warning: $source_file resolves outside $sysfiles_root, skipping..."
+        return 1
+    fi
+    relative_path="${resolved_source#$resolved_root/}"
     target_file="/$relative_path"
     target_dir="$(dirname "$target_file")"
-    
+
     # Validate source file exists and is readable
     if [ ! -f "$source_file" ] || [ ! -r "$source_file" ]; then
         echo "Warning: Cannot read source file $source_file, skipping..."
         return 1
     fi
-    
+
     # Create target directory with error handling
     if ! sudo mkdir -p "$target_dir"; then
         echo "Error: Failed to create directory $target_dir"
         return 1
     fi
-    
+
     # Move any existing file or symlink aside before installing the managed copy.
     if [ -e "$target_file" ] || [ -L "$target_file" ]; then
         if [ ! -L "$target_file" ] && sudo cmp -s "$source_file" "$target_file"; then
@@ -283,12 +313,12 @@ install_system_file() {
             return 1
         fi
     fi
-    
-    # Preserve source mode, but make installed system files root-owned.
-    source_perms=$(stat -c "%a" "$source_file" 2>/dev/null || echo "644")
-    
-    print_info "Installing $(basename "$source_file") -> $target_file"
-    if ! sudo install -o root -g root -m "$source_perms" "$source_file" "$target_file"; then
+
+    local target_mode
+    target_mode="$(target_mode_for "$target_file")"
+
+    print_info "Installing $(basename "$source_file") -> $target_file (mode $target_mode)"
+    if ! sudo install -o root -g root -m "$target_mode" "$source_file" "$target_file"; then
         echo "Error: Failed to install $target_file"
         return 1
     fi

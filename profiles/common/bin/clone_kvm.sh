@@ -80,6 +80,28 @@ if [ -z "$HOSTNAME" ]; then
     HOSTNAME="$NEW_VM"
 fi
 
+# Validate identifiers before they reach virsh, JSON payloads, or remote `ssh
+# user@host "..."` command strings. We accept only RFC 1123 syntax so no shell
+# or JSON metacharacter can ever get downstream.
+validate_identifier() {
+    local name="$1"
+    local value="$2"
+    if [[ ! "$value" =~ ^[A-Za-z0-9][A-Za-z0-9.-]{0,62}$ ]]; then
+        echo -e "${RED}Error: $name '$value' is not a valid RFC 1123 hostname.${NC}" >&2
+        echo -e "${RED}  Allowed: alnum, '.', '-'; 1-63 chars; must start alnum.${NC}" >&2
+        exit 1
+    fi
+}
+validate_identifier "source-vm" "$SOURCE_VM"
+validate_identifier "new-vm"    "$NEW_VM"
+validate_identifier "hostname"  "$HOSTNAME"
+if [ -n "$SSH_USER" ]; then
+    if [[ ! "$SSH_USER" =~ ^[a-z_][a-z0-9_-]{0,31}$ ]]; then
+        echo -e "${RED}Error: SSH user '$SSH_USER' is not a valid POSIX username.${NC}" >&2
+        exit 1
+    fi
+fi
+
 if ! virsh list --all | grep -qw "$SOURCE_VM"; then
     echo -e "${RED}Source VM '$SOURCE_VM' not found${NC}"
     exit 1

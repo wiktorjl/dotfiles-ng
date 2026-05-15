@@ -16,6 +16,21 @@ SOURCE_DOMAIN=$1
 NEW_DOMAIN=$2
 NEW_HOSTNAME=$3
 
+# Validate identifiers before they flow into virsh, JSON payloads, or guest
+# `bash -c` commands. Anything outside RFC 1123 hostname syntax is rejected so
+# a `'` / `"` / `;` / `$` / `\` can never reach the inner shell.
+validate_identifier() {
+    local name="$1"
+    local value="$2"
+    if [[ ! "$value" =~ ^[A-Za-z0-9][A-Za-z0-9.-]{0,62}$ ]]; then
+        echo "Error: $name '$value' is not a valid RFC 1123 hostname (allowed: alnum, '.', '-'; 1-63 chars; must start alnum)" >&2
+        exit 1
+    fi
+}
+validate_identifier "source-domain" "$SOURCE_DOMAIN"
+validate_identifier "new-domain"    "$NEW_DOMAIN"
+validate_identifier "new-hostname"  "$NEW_HOSTNAME"
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'

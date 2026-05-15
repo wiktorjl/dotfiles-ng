@@ -130,12 +130,17 @@ ${LINE_STAT1}
 ${LINE_STAT2}
 ${LINE_STAT3}"
 
-# Write to cache file atomically (write to temp file, then move)
+# Write to cache file atomically (write to temp file, then move).
+# Format is intentionally NOT shell-sourceable: line 1 is the unix timestamp,
+# everything after a literal "---" marker is the rendered status. Reader uses
+# plain `read`/`cat`, never `source`, so user-controlled values (hostname,
+# /etc/os-release fields, etc.) can never reach a shell parser.
 TEMP_FILE="${CACHE_FILE}.tmp.$$"
-cat > "${TEMP_FILE}" <<EOF
-TIMESTAMP=$(date +%s)
-STATUS_LINE='${STATUS_LINE}'
-EOF
+{
+    date +%s
+    echo "---"
+    printf '%s\n' "${STATUS_LINE}"
+} > "${TEMP_FILE}"
 
 mv "${TEMP_FILE}" "${CACHE_FILE}"
 

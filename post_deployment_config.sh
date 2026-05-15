@@ -1,5 +1,27 @@
 #!/bin/bash
 
+# Reject any hostname/domain that isn't valid RFC 1123 syntax. Without this,
+# a pasted value containing a newline silently appends arbitrary lines to
+# /etc/hosts via `sudo tee -a` (e.g. an attacker-controlled `1.2.3.4
+# github.com`), and a leading `-` could turn into a `hostnamectl set-hostname
+# --evil` flag injection.
+validate_hostname_label() {
+    local kind="$1" value="$2"
+    if [[ ! "$value" =~ ^[A-Za-z0-9][A-Za-z0-9-]{0,62}$ ]]; then
+        echo "Error: $kind '$value' is not a valid RFC 1123 label." >&2
+        echo "  Allowed: alnum and '-'; 1-63 chars; must start with alnum." >&2
+        exit 1
+    fi
+}
+validate_domain_name() {
+    local value="$1"
+    if [[ ! "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*$ ]] \
+       || [ "${#value}" -gt 253 ]; then
+        echo "Error: domain '$value' is not a valid RFC 1123 domain name." >&2
+        exit 1
+    fi
+}
+
 # Detect if running in Docker/container environment
 is_container() {
     # Check for Docker environment
@@ -114,6 +136,7 @@ is_ssh_enabled() {
 
 # Ask for host name
 read -p "Enter the host name: " HOST_NAME
+validate_hostname_label "hostname" "$HOST_NAME"
 # Set the hostname using container-aware method
 echo "Setting hostname to $HOST_NAME..."
 set_hostname "$HOST_NAME"
@@ -122,13 +145,18 @@ set_hostname "$HOST_NAME"
 read -p "Do you want to set a domain name? (y/n): " SET_DOMAIN
 if [[ "$SET_DOMAIN" == "y" || "$SET_DOMAIN" == "Y" ]]; then
     read -p "Enter the domain name: " DOMAIN_NAME
+    validate_domain_name "$DOMAIN_NAME"
     echo "Setting domain name to $DOMAIN_NAME..."
     set_hostname "$HOST_NAME.$DOMAIN_NAME"
 else
     echo "Domain name not set."
 fi
 
-# Check if the user is in the right groups (docker, libvirt, kvm, sudo, wheel, adm, users, etc.) and if a group exists, add the user to it
+# Check group memberships. Groups are split into two tiers:
+#   * standard groups (sudo/wheel/adm/users) — added automatically
+#   * privileged-equivalent groups (docker/libvirt/kvm) — root-equivalent
+#     locally (e.g. `docker run --privileged -v /:/mnt` trivially escalates
+#     to root), so they require an explicit opt-in.
 check_and_add_group() {
     local group_name="$1"
     if getent group "$group_name" > /dev/null; then
@@ -142,12 +170,33 @@ check_and_add_group() {
         echo "Group $group_name does not exist."
     fi
 }
-# List of groups to check
-groups_to_check=("docker" "libvirt" "kvm" "sudo" "wheel" "adm" "users")
-# Check and add user to each group
-for group in "${groups_to_check[@]}"; do
+
+standard_groups=("sudo" "wheel" "adm" "users")
+privileged_groups=("docker" "libvirt" "kvm")
+
+for group in "${standard_groups[@]}"; do
     check_and_add_group "$group"
 done
+
+if [ -t 0 ]; then
+    echo
+    echo "The following groups grant local root-equivalent capability:"
+    for g in "${privileged_groups[@]}"; do echo "  - $g"; done
+    echo "Membership means any code running as $USER (including a compromised"
+    echo "shell or extension) can trivially become root."
+    read -p "Add $USER to these groups anyway? (y/N): " ADD_PRIV_GROUPS
+    if [[ "$ADD_PRIV_GROUPS" == "y" || "$ADD_PRIV_GROUPS" == "Y" ]]; then
+        for group in "${privileged_groups[@]}"; do
+            check_and_add_group "$group"
+        done
+    else
+        echo "Skipping privileged group additions. Use 'sudo' explicitly for"
+        echo "docker/libvirt/virsh commands, or rerun this script to opt in."
+    fi
+else
+    echo "Non-interactive run: skipping privileged group additions (docker/libvirt/kvm)."
+    echo "Rerun this script interactively if you want to opt in."
+fi
 # Ask for a reboot (container-aware)
 if is_container; then
     echo "Container environment detected. Reboot not applicable."
