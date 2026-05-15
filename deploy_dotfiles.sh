@@ -3,57 +3,10 @@
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NON_INTERACTIVE=false
 
-# Setup logging
-LOG_DIR="$BASE_DIR/logs"
-LOG_FILE="$LOG_DIR/deploy_dotfiles_$(date +%Y%m%d_%H%M%S).log"
-ERROR_LOG="$LOG_DIR/errors_$(date +%Y%m%d_%H%M%S).log"
-mkdir -p "$LOG_DIR"
-
-# Logging functions
-log_message() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
-}
-
-log_error() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1" | tee -a "$LOG_FILE" >> "$ERROR_LOG"
-}
-
-# Colors for better TUI
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-BOLD='\033[1m'
-NC='\033[0m' # No Color
-
-# TUI helper functions
-print_success() {
-    echo -e "${GREEN}[OK]${NC} $1"
-    log_message "SUCCESS: $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-    log_error "$1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-    log_message "WARNING: $1"
-}
-
-print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-    log_message "INFO: $1"
-}
-
-print_progress() {
-    echo -e "${MAGENTA}[PROG]${NC} $1"
-    log_message "PROGRESS: $1"
-}
+# Shared logging + TUI helpers (colors, print_*, log_message, log_error).
+LOG_NAME=deploy_dotfiles
+# shellcheck disable=SC1091
+. "$BASE_DIR/lib/log.sh"
 
 print_banner() {
     echo

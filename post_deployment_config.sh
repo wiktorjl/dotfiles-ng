@@ -1,5 +1,9 @@
 #!/bin/bash
 
+BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck disable=SC1091
+. "$BASE_DIR/lib/distro.sh"
+
 # Reject any hostname/domain that isn't valid RFC 1123 syntax. Without this,
 # a pasted value containing a newline silently appends arbitrary lines to
 # /etc/hosts via `sudo tee -a` (e.g. an attacker-controlled `1.2.3.4
@@ -22,29 +26,7 @@ validate_domain_name() {
     fi
 }
 
-# Detect if running in Docker/container environment
-is_container() {
-    # Check for Docker environment
-    if [ -f /.dockerenv ]; then
-        return 0
-    fi
-    
-    # Check for container environment variables
-    if [ -n "$container" ] || [ -n "$DOCKER_CONTAINER" ]; then
-        return 0
-    fi
-    
-    # Check if systemd is available and running
-    if ! command -v systemctl >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    if ! systemctl is-system-running >/dev/null 2>&1; then
-        return 0
-    fi
-    
-    return 1
-}
+# is_container is sourced from lib/distro.sh
 
 # Set hostname with fallback for containers
 set_hostname() {

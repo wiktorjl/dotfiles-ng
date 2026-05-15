@@ -1,5 +1,7 @@
-# This dockerfile helps test dotfiles deployments
-FROM debian:latest
+# This dockerfile helps test dotfiles deployments.
+# Override the base distro with: docker build --build-arg DISTRO_IMAGE=ubuntu:latest .
+ARG DISTRO_IMAGE=debian:latest
+FROM ${DISTRO_IMAGE}
 
 # Install necessary packages
 RUN apt-get update && \

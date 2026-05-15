@@ -5,51 +5,12 @@
 
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Setup logging
-LOG_DIR="$BASE_DIR/logs"
-LOG_FILE="$LOG_DIR/deploy_all_$(date +%Y%m%d_%H%M%S).log"
-mkdir -p "$LOG_DIR"
-
-# Colors for output
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-BOLD='\033[1m'
-NC='\033[0m'
-
-# Logging functions
-log_message() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
-}
-
-print_success() {
-    echo -e "${GREEN}[OK]${NC} $1"
-    log_message "SUCCESS: $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-    log_message "ERROR: $1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-    log_message "WARNING: $1"
-}
-
-print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-    log_message "INFO: $1"
-}
-
-print_progress() {
-    echo -e "${MAGENTA}[PROG]${NC} $1"
-    log_message "PROGRESS: $1"
-}
+# Shared logging + TUI helpers (colors, print_*, log_message).
+LOG_NAME=deploy_all
+# shellcheck disable=SC1091
+. "$BASE_DIR/lib/log.sh"
+# shellcheck disable=SC1091
+. "$BASE_DIR/lib/pkg.sh"
 
 print_banner() {
     echo
@@ -87,93 +48,53 @@ ask_confirmation() {
     fi
 }
 
-# Check for required tools
+# Check for required tools. lib/pkg.sh has already refused to load on
+# non-Debian-likes, so apt-get is guaranteed available here.
 check_required_tools() {
     local missing_tools=()
+    command -v sudo >/dev/null 2>&1 || missing_tools+=("sudo")
+    command -v curl >/dev/null 2>&1 || missing_tools+=("curl")
 
-    # Check for sudo
-    if ! command -v sudo >/dev/null 2>&1; then
-        missing_tools+=("sudo")
+    if [ ${#missing_tools[@]} -eq 0 ]; then
+        print_success "All required tools are available"
+        return 0
     fi
 
-    # Check for curl
-    if ! command -v curl >/dev/null 2>&1; then
-        missing_tools+=("curl")
+    print_error "Missing required tools: ${missing_tools[*]}"
+    echo
+    print_info "These tools are required for the deployment process."
+    echo -e "${BOLD}${YELLOW}Do you want to install the missing tools?${NC} ${CYAN}[y/N]:${NC}"
+    echo -n "=> "
+
+    if [ -t 0 ]; then
+        read -r install_tools
+    else
+        install_tools="y"
+        print_info "Non-interactive mode: Auto-accepting tool installation"
     fi
 
-    if [ ${#missing_tools[@]} -gt 0 ]; then
-        print_error "Missing required tools: ${missing_tools[*]}"
-        echo
-        print_info "These tools are required for the deployment process."
-        echo -e "${BOLD}${YELLOW}Do you want to install the missing tools?${NC} ${CYAN}[y/N]:${NC}"
-        echo -n "=> "
+    if [[ "$install_tools" != "y" && "$install_tools" != "Y" ]]; then
+        print_error "Required tools not available. Deployment cannot continue."
+        exit 1
+    fi
 
-        # Handle non-interactive mode
-        if [ -t 0 ]; then
-            read -r install_tools
+    print_progress "Installing missing tools..."
+    # Bootstrap path: sudo itself may be missing, so we may need to run as root
+    # directly. After sudo lands, pkg_install handles the rest.
+    if [ "$(id -u)" -eq 0 ]; then
+        apt-get update -qq && apt-get install -y -qq --no-install-recommends "${missing_tools[@]}"
+    else
+        pkg_update && pkg_install "${missing_tools[@]}"
+    fi
+
+    for tool in "${missing_tools[@]}"; do
+        if command -v "$tool" >/dev/null 2>&1; then
+            print_success "$tool installed successfully"
         else
-            install_tools="y"
-            print_info "Non-interactive mode: Auto-accepting tool installation"
-        fi
-
-        if [[ "$install_tools" == "y" || "$install_tools" == "Y" ]]; then
-            print_progress "Installing missing tools..."
-
-            # Try to install without sudo first (for systems where user has direct package manager access)
-            for tool in "${missing_tools[@]}"; do
-                if [ "$tool" = "sudo" ]; then
-                    print_info "Installing sudo..."
-                    if command -v apt-get >/dev/null 2>&1; then
-                        apt-get update && apt-get install -y sudo
-                    elif command -v yum >/dev/null 2>&1; then
-                        yum install -y sudo
-                    elif command -v pacman >/dev/null 2>&1; then
-                        pacman -S --noconfirm sudo
-                    else
-                        print_error "Package manager not supported. Please install sudo manually."
-                        exit 1
-                    fi
-                elif [ "$tool" = "curl" ]; then
-                    print_info "Installing curl..."
-                    if command -v apt-get >/dev/null 2>&1; then
-                        if command -v sudo >/dev/null 2>&1; then
-                            sudo apt-get update && sudo apt-get install -y curl
-                        else
-                            apt-get update && apt-get install -y curl
-                        fi
-                    elif command -v yum >/dev/null 2>&1; then
-                        if command -v sudo >/dev/null 2>&1; then
-                            sudo yum install -y curl
-                        else
-                            yum install -y curl
-                        fi
-                    elif command -v pacman >/dev/null 2>&1; then
-                        if command -v sudo >/dev/null 2>&1; then
-                            sudo pacman -S --noconfirm curl
-                        else
-                            pacman -S --noconfirm curl
-                        fi
-                    else
-                        print_error "Package manager not supported. Please install curl manually."
-                        exit 1
-                    fi
-                fi
-
-                # Verify installation
-                if command -v "$tool" >/dev/null 2>&1; then
-                    print_success "$tool installed successfully"
-                else
-                    print_error "Failed to install $tool"
-                    exit 1
-                fi
-            done
-        else
-            print_error "Required tools not available. Deployment cannot continue."
+            print_error "Failed to install $tool"
             exit 1
         fi
-    else
-        print_success "All required tools are available"
-    fi
+    done
 }
 
 # Main deployment function

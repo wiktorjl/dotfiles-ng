@@ -27,7 +27,9 @@ This is a dotfiles management system for Linux environments that provides automa
 
 ### Testing
 ```bash
-./run_docker_test.sh   # Builds and runs a Docker container for testing dotfile deployment
+./run_docker_test.sh           # Build + run a Debian test container (default)
+./run_docker_test.sh ubuntu    # Same, but on Ubuntu
+./run_docker_test.sh ubuntu:22.04   # Or pin any docker image reference
 # Inside container: ./deploy_all.sh to test full deployment
 ```
 
@@ -50,6 +52,21 @@ profiles/common/bin/lock_file.sh -d <file.age>    # Decrypt age-encrypted file
 ```
 
 ## Architecture Overview
+
+### Supported Distros
+Debian and Ubuntu (and any Debian-derived distro that uses apt/dpkg). Distro
+detection lives in `lib/distro.sh`; the package-manager abstraction lives in
+`lib/pkg.sh`. Adding a non-apt distro means adding a dispatch branch in
+`lib/pkg.sh` (and an entry in `is_debian_like`); the rest of the codebase
+should not need to change.
+
+### Shared Libraries (`lib/`)
+- **lib/log.sh** — colors (TTY-aware), `print_success/error/warning/info/progress`,
+  `log_message`, `log_error`, `log_command`. Callers set `LOG_NAME` before
+  sourcing to enable file logging.
+- **lib/distro.sh** — `os_id`, `os_codename`, `is_debian_like`, `is_container`.
+- **lib/pkg.sh** — `pkg_update`, `pkg_install`, `pkg_install_one`,
+  `pkg_installed`, `pkg_available`. Refuses to load on non-Debian-likes.
 
 ### Profile System
 - **profiles/** - Contains modular software installation profiles

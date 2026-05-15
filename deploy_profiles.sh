@@ -1,51 +1,15 @@
 #!/bin/bash
 set -o pipefail
 
-# Set environment variables to prevent debconf warnings
-export DEBIAN_FRONTEND=noninteractive
-export DEBCONF_NONINTERACTIVE_SEEN=true
-
-# Define the base directory for profiles
 BASE_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-# Setup logging
-LOG_DIR="$BASE_DIR/logs"
-LOG_FILE="$LOG_DIR/deploy_profiles_$(date +%Y%m%d_%H%M%S).log"
-ERROR_LOG="$LOG_DIR/errors_$(date +%Y%m%d_%H%M%S).log"
-mkdir -p "$LOG_DIR"
-
-# Colors for better TUI
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-BLUE='\033[0;34m'
-MAGENTA='\033[0;35m'
-CYAN='\033[0;36m'
-WHITE='\033[1;37m'
-BOLD='\033[1m'
-NC='\033[0m' # No Color
-
-# Logging functions
-log_message() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" | tee -a "$LOG_FILE"
-}
-
-log_error() {
-    echo "[$(date '+%Y-%m-%d %H:%M:%S')] ERROR: $1" | tee -a "$LOG_FILE" >> "$ERROR_LOG"
-}
-
-log_command() {
-    local desc="$1"
-    shift
-    log_message "COMMAND: $desc"
-    log_message "EXECUTING: $(printf '%q ' "$@")"
-    "$@" 2>&1 | tee -a "$LOG_FILE"
-    local exit_code=${PIPESTATUS[0]}
-    if [ $exit_code -ne 0 ]; then
-        log_error "Command failed with exit code $exit_code: $(printf '%q ' "$@")"
-    fi
-    return $exit_code
-}
+# Shared logging + TUI helpers (colors, print_*, log_*).
+LOG_NAME=deploy_profiles
+# shellcheck disable=SC1091
+. "$BASE_DIR/lib/log.sh"
+# Package-manager abstraction; sets DEBIAN_FRONTEND=noninteractive.
+# shellcheck disable=SC1091
+. "$BASE_DIR/lib/pkg.sh"
 
 # Package verification functions
 collect_all_packages() {
@@ -82,65 +46,25 @@ verify_package_installation() {
     local packages=("$@")
     local installed_packages=()
     local failed_packages=()
-    
+
     for package in "${packages[@]}"; do
-        if dpkg -l "$package" 2>/dev/null | grep -q "^ii"; then
+        if pkg_installed "$package"; then
             installed_packages+=("$package")
         else
             failed_packages+=("$package")
         fi
     done
-    
+
     # Return results via global arrays (bash limitation workaround)
     INSTALLED_PACKAGES=("${installed_packages[@]}")
     FAILED_PACKAGES=("${failed_packages[@]}")
 }
 
-# TUI helper functions
 print_header() {
     echo -e "${CYAN}+==============================================================+${NC}"
     echo -e "${CYAN}|${BOLD}                    PROFILE DEPLOYMENT MANAGER                ${NC}${CYAN}|${NC}"
     echo -e "${CYAN}+==============================================================+${NC}"
     echo
-}
-
-print_success() {
-    echo -e "${GREEN}[OK]${NC} $1"
-    log_message "SUCCESS: $1"
-}
-
-print_error() {
-    echo -e "${RED}[ERROR]${NC} $1"
-    log_error "$1"
-}
-
-print_warning() {
-    echo -e "${YELLOW}[WARN]${NC} $1"
-    log_message "WARNING: $1"
-}
-
-print_info() {
-    echo -e "${BLUE}[INFO]${NC} $1"
-    log_message "INFO: $1"
-}
-
-print_progress() {
-    echo -e "${MAGENTA}[PROG]${NC} $1"
-    log_message "PROGRESS: $1"
-}
-
-show_spinner() {
-    local pid=$1
-    local delay=0.1
-    local spinstr='|/-\\'
-    while [ "$(ps a | awk '{print $1}' | grep $pid)" ]; do
-        local temp=${spinstr#?}
-        printf " [%c]  " "$spinstr"
-        local spinstr=$temp${spinstr%"$temp"}
-        sleep $delay
-        printf "\b\b\b\b\b\b"
-    done
-    printf "    \b\b\b\b"
 }
 
 # List profiles and allow user to select one or more.
@@ -315,46 +239,28 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
     if [[ "$confirm" == "y" || "$confirm" == "Y" ]]; then
         echo
         print_progress "Applying selected profiles..."
-        
-        # First, make sure we run apt update (with optimizations)
+
         print_info "Updating package lists..."
-        # Set environment variables to prevent debconf warnings
-        export DEBIAN_FRONTEND=noninteractive
-        export DEBCONF_NONINTERACTIVE_SEEN=true
-        log_command "Updating package lists" sudo --preserve-env=DEBIAN_FRONTEND,DEBCONF_NONINTERACTIVE_SEEN apt-get update -qq
-        if [ $? -ne 0 ]; then
+        if log_command "Updating package lists" pkg_update; then
+            print_success "Package lists updated successfully"
+        else
             print_error "Failed to update package lists. Please check your internet connection or package manager."
             exit 1
-        else
-            print_success "Package lists updated successfully"
         fi
 
 
-        # Create ordered list of selected profiles using the same order from profiles/order file
+        # Sort selected_profiles into install order by filtering the already-
+        # ordered `profiles` list (which combines profiles/order + any custom
+        # profile dirs found on disk). The user may click profiles in any
+        # order, but install order must respect profiles/order so deps land
+        # before dependents.
         ordered_profiles=()
-        for ordered_profile in "${profile_order[@]}"; do
-            for selected_profile in "${selected_profiles[@]}"; do
-                if [[ "$ordered_profile" == "$selected_profile" ]]; then
-                    ordered_profiles+=("$ordered_profile")
-                    break
-                fi
-            done
+        for p in "${profiles[@]}"; do
+            case " ${selected_profiles[*]} " in
+                *" $p "*) ordered_profiles+=("$p") ;;
+            esac
         done
-        
-        # Add any selected profiles not in the order file (custom profiles)
-        for selected_profile in "${selected_profiles[@]}"; do
-            found=false
-            for ordered_profile in "${ordered_profiles[@]}"; do
-                if [[ "$selected_profile" == "$ordered_profile" ]]; then
-                    found=true
-                    break
-                fi
-            done
-            if [[ "$found" == false ]]; then
-                ordered_profiles+=("$selected_profile")
-            fi
-        done
-        
+
         print_info "Installing profiles in dependency order: ${ordered_profiles[*]}"
         echo
 
@@ -391,9 +297,9 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                         print_info "No init scripts found for profile '$profile'. Skipping."
                     else
                         print_success "Completed $init_script_count init scripts for profile '$profile'"
-                        # Run apt update after init scripts to ensure new repositories are available
+                        # Refresh package lists so newly-added repos (from init-scripts) are visible.
                         print_info "Updating package lists after init scripts..."
-                        if ! log_command "Post-init scripts package list update" sudo --preserve-env=DEBIAN_FRONTEND,DEBCONF_NONINTERACTIVE_SEEN apt-get update -qq; then
+                        if ! log_command "Post-init scripts package list update" pkg_update; then
                             # Stale package lists would poison the upcoming install,
                             # so skip the rest of this profile but keep going on the others.
                             print_error "Failed to update package lists after init scripts; skipping packages and post-scripts for '$profile'."
@@ -431,84 +337,41 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                     fi
                 done
                 
-                # Validate packages before installation
-                if [ ${#all_packages[@]} -gt 0 ]; then
+                # Validate packages before installation. The pre-check filters out
+                # packages that aren't in any configured repo, so the batch install
+                # doesn't fail wholesale when one package has been renamed/removed.
+                if [ ${#all_packages[@]} -eq 0 ]; then
+                    print_info "No packages found for profile '$profile'"
+                else
                     print_info "Validating ${#all_packages[@]} packages..."
-                    
-                    # Check which packages are available
-                    available_packages=()
-                    unavailable_packages=()
-                    
-                    for package in "${all_packages[@]}"; do
-                        print_info "Checking availability of package: $package"
-                        # Capture both stdout and stderr for debugging
-                        apt_output=$(apt-cache show "$package" 2>&1)
-                        apt_exit_code=$?
-                        
-                        if [ $apt_exit_code -eq 0 ]; then
-                            available_packages+=("$package")
-                            print_success "Package '$package' is available"
-                        else
-                            unavailable_packages+=("$package")
-                            print_warning "Package '$package' not available. apt-cache error: $apt_output"
-                            
-                            # Try to suggest alternatives for common packages
-                            suggestion=""
-                            case "$package" in
-                                "fonts-ibm-plex") suggestion="fonts-source-code-pro" ;;
-                                "fonts-havana") suggestion="fonts-ubuntu" ;;
-                                "consolefonts-bedstead") suggestion="fonts-terminus" ;;
-                                "fonts-adobe-sourcesans3") suggestion="fonts-adobe-source-sans3" ;;
-                                *) suggestion="" ;;
-                            esac
-                            
-                            if [ -n "$suggestion" ]; then
-                                print_warning "Package '$package' not available. Try: $suggestion"
-                            fi
-                        fi
-                    done
-                    
-                    if [ ${#unavailable_packages[@]} -gt 0 ]; then
-                        print_warning "${#unavailable_packages[@]} packages unavailable: ${unavailable_packages[*]}"
+                    pkg_partition_available "${all_packages[@]}"
+
+                    if [ ${#PKG_UNAVAILABLE[@]} -gt 0 ]; then
+                        print_warning "${#PKG_UNAVAILABLE[@]} packages unavailable: ${PKG_UNAVAILABLE[*]}"
                     fi
-                    
-                    # Install available packages
-                    if [ ${#available_packages[@]} -gt 0 ]; then
-                        print_info "Installing ${#available_packages[@]} available packages in batch..."
-                        echo -e "  ${CYAN}Packages: ${available_packages[*]}${NC}"
-                        log_message "COMMAND: Installing ${#available_packages[@]} packages in batch"
-                        log_message "EXECUTING: sudo apt-get install -y -qq --no-install-recommends ${available_packages[*]}"
-                        
-                        # Set environment variables to prevent debconf warnings
-                        export DEBIAN_FRONTEND=noninteractive
-                        export DEBCONF_NONINTERACTIVE_SEEN=true
-                        
-                        # Use a more robust approach to capture exit code
-                        if sudo --preserve-env=DEBIAN_FRONTEND,DEBCONF_NONINTERACTIVE_SEEN apt-get install -y -qq --no-install-recommends "${available_packages[@]}" 2>&1 | tee -a "$LOG_FILE"; then
+
+                    if [ ${#PKG_AVAILABLE[@]} -eq 0 ]; then
+                        print_warning "No packages available for installation in profile '$profile'"
+                    else
+                        print_info "Installing ${#PKG_AVAILABLE[@]} available packages in batch..."
+                        echo -e "  ${CYAN}Packages: ${PKG_AVAILABLE[*]}${NC}"
+                        if log_command "Installing ${#PKG_AVAILABLE[@]} packages in batch" pkg_install "${PKG_AVAILABLE[@]}"; then
                             print_success "All available packages installed successfully"
-                            log_message "SUCCESS: All available packages installed successfully"
                         else
-                            exit_code=${PIPESTATUS[0]}
-                            log_error "Batch installation failed with exit code $exit_code"
+                            # Per-package failures are reported in the verification
+                            # summary at the end; keep going so other packages still
+                            # get a chance.
                             print_warning "Batch installation failed. Falling back to individual package installation..."
-                            # Fallback: install packages individually if batch fails
-                            for package in "${available_packages[@]}"; do
+                            for package in "${PKG_AVAILABLE[@]}"; do
                                 print_progress "Installing $package individually..."
-                                if log_command "Installing $package individually" sudo --preserve-env=DEBIAN_FRONTEND,DEBCONF_NONINTERACTIVE_SEEN apt-get install -y -qq "$package"; then
+                                if log_command "Installing $package individually" pkg_install_one "$package"; then
                                     print_success "$package installed"
                                 else
-                                    # Per-package failures get reported in the package
-                                    # verification summary below; keep going so other
-                                    # packages in the fallback still get a chance.
                                     print_error "Failed to install $package"
                                 fi
                             done
                         fi
-                    else
-                        print_warning "No packages available for installation in profile '$profile'"
                     fi
-                else
-                    print_info "No packages found for profile '$profile'"
                 fi
             
                 # Now run remaining scripts in the profile/scripts directory
