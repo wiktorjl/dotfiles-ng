@@ -22,13 +22,20 @@ alias glowp="glow -p"
 # in an alias are expanded at *definition* time (shell startup) — so the old
 # alias forever cloaked whatever directory the shell was started in.
 cloak() {
-    local name tarball
+    local name tarball rc old_umask
     name=$(basename "$PWD")
+    # Owner-only modes on everything we write — both the intermediate tar
+    # and the resulting .age file. Without this, the .age ciphertext lands
+    # 0644 on Debian's default 0022 umask, and any local user on a host
+    # where $HOME is o+x can read it.
+    old_umask=$(umask)
+    umask 077
     tarball=$(mktemp --suffix=".tar.gz" "/tmp/${name}.XXXXXX.tar.gz")
     tar czf "$tarball" -C "$(dirname "$PWD")" "$name" \
         && age --passphrase -o "./${name}.tar.gz.age" "$tarball"
-    local rc=$?
+    rc=$?
     rm -f "$tarball"
+    umask "$old_umask"
     return $rc
 }
 
@@ -39,10 +46,15 @@ uncloak() {
         echo "usage: uncloak <name>  (operates on ./<name>.tar.gz.age)" >&2
         return 2
     fi
-    local name="$1"
+    local name="$1" old_umask rc
+    old_umask=$(umask)
+    umask 077
     age --decrypt -o "./${name}.tar.gz" "./${name}.tar.gz.age" \
         && tar xzf "./${name}.tar.gz" \
         && rm -f "./${name}.tar.gz"
+    rc=$?
+    umask "$old_umask"
+    return $rc
 }
 
 alias superclaude="claude --dangerously-skip-permissions"

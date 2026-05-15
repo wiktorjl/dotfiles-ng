@@ -79,7 +79,7 @@ show_deployment_plan() {
 ask_confirmation() {
     echo -e "${BOLD}${YELLOW}Do you want to proceed with the complete deployment?${NC} ${CYAN}[y/N]:${NC}"
     echo -n "=> "
-    read confirm
+    read -r confirm
     
     if [[ "$confirm" != "y" && "$confirm" != "Y" ]]; then
         print_info "Deployment cancelled by user."
@@ -110,7 +110,7 @@ check_required_tools() {
 
         # Handle non-interactive mode
         if [ -t 0 ]; then
-            read install_tools
+            read -r install_tools
         else
             install_tools="y"
             print_info "Non-interactive mode: Auto-accepting tool installation"
@@ -252,7 +252,7 @@ main() {
     if [ -t 0 ]; then
         echo -e "${BOLD}${YELLOW}Do you want to run post-deployment configuration (hostname, groups, SSH)?${NC} ${CYAN}[y/N]:${NC}"
         echo -n "=> "
-        read config_answer
+        read -r config_answer
         
         if [ "$config_answer" = "y" ]; then
             print_progress "Running post-deployment configuration..."

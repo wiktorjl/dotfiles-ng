@@ -9,23 +9,26 @@ echo "-----------------------------------------------------"
 if [ -f /etc/apt/sources.list.d/vscode.list ] && [ -f /etc/apt/keyrings/microsoft-archive-keyring.gpg ] && grep -q "packages.microsoft.com/repos/code" /etc/apt/sources.list.d/vscode.list; then
     echo "VS Code repository already configured, skipping setup..."
 else
+    # Write the keyring to a private temp dir, not CWD — the original script
+    # ran `gpg --dearmor -o microsoft.gpg` against whatever directory it was
+    # invoked from (often the repo root), littering working trees and racing
+    # with anything else that might own a `microsoft.gpg` there.
+    keytmp="$(mktemp -d)"
+    trap 'rm -rf "$keytmp"' RETURN
     echo "1. Downloading Microsoft GPG key..."
-    curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o microsoft.gpg
-    if [ $? -ne 0 ]; then
+    if ! curl -fsSL https://packages.microsoft.com/keys/microsoft.asc | gpg --dearmor -o "$keytmp/microsoft.gpg"; then
         echo "Error: Failed to download or dearmor Microsoft GPG key."
-        rm -f microsoft.gpg # Clean up
         exit 1
     fi
 
     echo "2. Installing Microsoft GPG key..."
     sudo mkdir -p /etc/apt/keyrings
-    sudo install -o root -g root -m 644 microsoft.gpg /etc/apt/keyrings/microsoft-archive-keyring.gpg
-    if [ $? -ne 0 ]; then
+    if ! sudo install -o root -g root -m 644 "$keytmp/microsoft.gpg" /etc/apt/keyrings/microsoft-archive-keyring.gpg; then
         echo "Error: Failed to install Microsoft GPG key."
-        rm -f microsoft.gpg # Clean up
         exit 1
     fi
-    rm -f microsoft.gpg # Clean up the temporary gpg file
+    rm -rf "$keytmp"
+    trap - RETURN
 
     echo "3. Adding VS Code repository..."
     sudo sh -c 'echo "deb [arch=amd64,arm64,armhf signed-by=/etc/apt/keyrings/microsoft-archive-keyring.gpg] https://packages.microsoft.com/repos/code stable main" > /etc/apt/sources.list.d/vscode.list'

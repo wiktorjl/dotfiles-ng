@@ -81,28 +81,51 @@ if [ ! -d "${PROFILE_BIN_DIR}" ]; then
     exit 0
 fi
 
-# Function to clean dead symlinks in a directory
+# Resolve the profile's bin directory to its canonical path so the
+# "is this link managed by us?" check below can compare against a stable
+# prefix even if the user symlinked the repo or invoked it via a path with
+# symlinks in it.
+PROFILE_BIN_REAL="$(readlink -f -- "${PROFILE_BIN_DIR}" 2>/dev/null || echo "${PROFILE_BIN_DIR}")"
+
+# Function to clean dead symlinks in a directory.
+#
+# Scope: only links whose target was inside *this* profile's bin/ directory.
+# Without this filter the previous version removed every dead link in
+# ~/.local/bin and /usr/local/bin — including legitimate user-installed
+# symlinks that happen to point at currently-missing targets (USB-mounted
+# tools, sibling repos checked out elsewhere, etc.).
 clean_dead_links() {
     local bin_dir="$1"
     local use_sudo="$2"
 
-    echo -e "${GREEN}Cleaning dead symlinks in ${bin_dir}...${NC}" >&2
+    echo -e "${GREEN}Cleaning dead symlinks in ${bin_dir} (only ones pointing into ${PROFILE_NAME}/bin)...${NC}" >&2
     local dead_links_count=0
 
     while IFS= read -r -d '' link; do
-        if [ ! -e "$link" ]; then
-            echo "  Removing dead link: $(basename "$link")" >&2
-            if [ "$use_sudo" = true ]; then
-                sudo rm "$link"
-            else
-                rm "$link"
-            fi
-            dead_links_count=$((dead_links_count + 1))
+        # Skip if target still exists.
+        [ -e "$link" ] && continue
+        # Read the symlink text (NOT readlink -f, which would resolve through
+        # the broken link and return nothing). We compare prefixes against
+        # both the literal stored path and the canonical real path so this
+        # works for both absolute and relative-into-the-repo links.
+        local stored
+        stored="$(readlink -- "$link" 2>/dev/null || true)"
+        case "$stored" in
+            "${PROFILE_BIN_DIR}"/*|"${PROFILE_BIN_REAL}"/*) ;;
+            *) continue ;;
+        esac
+
+        echo "  Removing dead link: $(basename -- "$link")" >&2
+        if [ "$use_sudo" = true ]; then
+            sudo rm -- "$link"
+        else
+            rm -- "$link"
         fi
+        dead_links_count=$((dead_links_count + 1))
     done < <(find "${bin_dir}" -maxdepth 1 -type l -print0 2>/dev/null) || true
 
     if [ $dead_links_count -eq 0 ]; then
-        echo "  No dead links found" >&2
+        echo "  No dead links pointing into ${PROFILE_NAME}/bin found" >&2
     else
         echo -e "  ${GREEN}Removed ${dead_links_count} dead link(s)${NC}" >&2
     fi
@@ -110,16 +133,22 @@ clean_dead_links() {
     echo "$dead_links_count"
 }
 
+# Unique suffix per call: timestamp + PID + monotonic counter. Without the
+# counter, calling this inside a `for script in ...` loop produces multiple
+# `.bak.<same-second>` filenames; the second `mv` overwrites the first
+# backup. With the counter every call is distinct.
+BACKUP_SUFFIX_COUNTER=0
 backup_existing_target() {
     local target="$1"
     local use_sudo="$2"
-    local backup_target="${target}.bak.$(date +%Y%m%d_%H%M%S)"
+    BACKUP_SUFFIX_COUNTER=$((BACKUP_SUFFIX_COUNTER + 1))
+    local backup_target="${target}.bak.$(date +%Y%m%d_%H%M%S).${$}.${BACKUP_SUFFIX_COUNTER}"
 
-    echo "  Moving existing $(basename "$target") to $(basename "$backup_target")" >&2
+    echo "  Moving existing $(basename -- "$target") to $(basename -- "$backup_target")" >&2
     if [ "$use_sudo" = true ]; then
-        sudo mv "$target" "$backup_target"
+        sudo mv -- "$target" "$backup_target"
     else
-        mv "$target" "$backup_target"
+        mv -- "$target" "$backup_target"
     fi
 }
 

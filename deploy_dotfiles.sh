@@ -175,10 +175,24 @@ if [ ! -d ~/.ssh ]; then
     chmod 600 ~/.ssh/config
     print_success "SSH configuration file created with proper permissions (600)."
 
-    # If SSH keys do not exist, generate them
-    if [ ! -f ~/.ssh/id_rsa ]; then
+    # If SSH keys do not exist, generate them. Honour DOTFILES_SSH_PASSPHRASE
+    # if set so non-interactive deploys can still produce a passphrase-protected
+    # key. The historical default was empty passphrase, which is fine for an
+    # ephemeral throwaway VM but unsafe on a persistent workstation. Default
+    # to ed25519 (smaller, faster, modern) with RSA available via env override.
+    if [ ! -f ~/.ssh/id_rsa ] && [ ! -f ~/.ssh/id_ed25519 ]; then
         print_progress "Generating SSH keys..."
-        ssh-keygen -t rsa -b 4096 -C "noreply@wiktor.io" -f ~/.ssh/id_rsa -N ""
+        local_key_type="${DOTFILES_SSH_KEY_TYPE:-ed25519}"
+        local_key_comment="${DOTFILES_SSH_KEY_COMMENT:-${USER}@$(hostname)}"
+        local_key_passphrase="${DOTFILES_SSH_PASSPHRASE-}"
+        if [ "$local_key_type" = "ed25519" ]; then
+            ssh-keygen -t ed25519 -C "$local_key_comment" -f ~/.ssh/id_ed25519 -N "$local_key_passphrase"
+        else
+            ssh-keygen -t rsa -b 4096 -C "$local_key_comment" -f ~/.ssh/id_rsa -N "$local_key_passphrase"
+        fi
+        if [ -z "$local_key_passphrase" ]; then
+            print_warning "Generated key has no passphrase. For a persistent workstation, set DOTFILES_SSH_PASSPHRASE before running."
+        fi
         print_success "SSH keys generated successfully."
     else
         print_info "SSH keys already exist."
@@ -206,7 +220,7 @@ if [ "$age_files_exist" = true ]; then
         # Terminal is interactive
         echo -e "${BOLD}${YELLOW}Do you want to decrypt them now?${NC} ${CYAN}[y/N]:${NC}"
         echo -n "=> "
-        read decrypt_answer
+        read -r decrypt_answer
     else
         # Being run via pipe, assume no decryption by default
         print_info "Script is being run non-interactively. Skipping decryption of encrypted files."
@@ -318,8 +332,18 @@ install_system_file() {
     target_mode="$(target_mode_for "$target_file")"
 
     print_info "Installing $(basename "$source_file") -> $target_file (mode $target_mode)"
-    if ! sudo install -o root -g root -m "$target_mode" "$source_file" "$target_file"; then
-        echo "Error: Failed to install $target_file"
+    # Install via a sibling temp path and atomic rename so we close the
+    # window between the prior `sudo mv` of the existing target and the
+    # final `install`. `install -T` makes the source-target relationship
+    # unambiguous; `mv -T` then swaps it in as a single rename.
+    local target_tmp="${target_file}.new.$$"
+    if ! sudo install -T -o root -g root -m "$target_mode" "$source_file" "$target_tmp"; then
+        echo "Error: Failed to install $target_tmp"
+        return 1
+    fi
+    if ! sudo mv -T "$target_tmp" "$target_file"; then
+        echo "Error: Failed to atomically rename $target_tmp -> $target_file"
+        sudo rm -f "$target_tmp"
         return 1
     fi
 

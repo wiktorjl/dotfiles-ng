@@ -1,5 +1,10 @@
 #!/bin/bash
+set -uo pipefail
 
+# Config file is parsed as KEY=VALUE lines — never `source`d. Previously this
+# ran `source "$HOME/.qbkp/config"` which executed the file as bash; with the
+# script wired into cron via schedule_backup.sh, anyone who could write that
+# path got arbitrary code execution at every scheduled backup.
 CONFIG_FILE="$HOME/.qbkp/config"
 DEFAULT_SOURCE_DIR="$HOME"
 DEFAULT_BACKUP_DIR="$HOME/.qbkp/data"
@@ -9,9 +14,31 @@ DATETIME=$(date +%Y%m%d_%H%M%S)
 BACKUP_NAME="backup_$DATETIME"
 LATEST_LINK="latest"
 LOG_FILE="$HOME/.qbkp/log/backup.log"
+SOURCE_DIR=""
+BACKUP_DIR=""
 
 if [ -f "$CONFIG_FILE" ]; then
-    source "$CONFIG_FILE"
+    while IFS='=' read -r key value; do
+        # Strip surrounding whitespace and quotes from the value.
+        value="${value#"${value%%[![:space:]]*}"}"
+        value="${value%"${value##*[![:space:]]}"}"
+        case "$value" in
+            \"*\") value="${value#\"}"; value="${value%\"}" ;;
+            \'*\') value="${value#\'}"; value="${value%\'}" ;;
+        esac
+        # Skip blank lines and comments.
+        case "$key" in
+            ''|'#'*) continue ;;
+        esac
+        case "$key" in
+            SOURCE_DIR)  SOURCE_DIR="$value" ;;
+            BACKUP_DIR)  BACKUP_DIR="$value" ;;
+            LATEST_LINK) LATEST_LINK="$value" ;;
+            LOG_FILE)    LOG_FILE="$value" ;;
+            # Anything else is ignored on purpose — the config file does
+            # not get to set arbitrary shell variables.
+        esac
+    done < "$CONFIG_FILE"
 fi
 
 
@@ -97,18 +124,36 @@ if [ $? -eq 0 ]; then
     log_message "Creating compressed archive"
     compression_start_time=$(date +%s)
     tar -cf - -C "$BACKUP_DIR" "$BACKUP_NAME" | pv | gzip > "$BACKUP_DIR/$BACKUP_NAME.tar.gz"
+    tar_exit=${PIPESTATUS[0]}
     compression_end_time=$(date +%s)
 
-    if [ $? -eq 0 ]; then
+    if [ "$tar_exit" -eq 0 ]; then
         rm -rf "$BACKUP_DIR/$BACKUP_NAME"
         log_message "Backup completed successfully"
-        
+
         rm -f "$BACKUP_DIR/$LATEST_LINK"
         ln -s "$BACKUP_NAME.tar.gz" "$BACKUP_DIR/$LATEST_LINK"
 
-        cd "$BACKUP_DIR"
-        ls -t *.tar.gz | tail -n +6 | xargs -r rm --
-        log_message "Cleaned up old backups"
+        # Rotate: keep the 5 newest .tar.gz, delete the rest. Previously this
+        # was `cd "$BACKUP_DIR" && ls -t *.tar.gz | tail -n +6 | xargs rm` —
+        # an unchecked cd would delete the wrong directory's archives, and
+        # parsing `ls` is unsafe for any filename with whitespace/newlines.
+        if pushd "$BACKUP_DIR" >/dev/null; then
+            mapfile -t old_archives < <(
+                find . -maxdepth 1 -name '*.tar.gz' -printf '%T@ %p\0' 2>/dev/null \
+                    | sort -zrn \
+                    | tail -z -n +6 \
+                    | tr '\0' '\n' \
+                    | cut -d' ' -f2-
+            )
+            if [ "${#old_archives[@]}" -gt 0 ]; then
+                rm -f -- "${old_archives[@]}"
+            fi
+            popd >/dev/null
+            log_message "Cleaned up old backups"
+        else
+            log_message "Warning: could not enter $BACKUP_DIR to rotate old archives."
+        fi
 
         end_time=$(date +%s)
         total_time=$((end_time - start_time))

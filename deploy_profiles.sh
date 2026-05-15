@@ -262,7 +262,7 @@ else
     # Prompt user for input
     echo -e "${BOLD}Enter the numbers of the profiles${NC} ${CYAN}(e.g., 1 3 4 or 1,3,4):${NC}"
     echo -n "=> "
-    read selection
+    read -r selection
 
     # Replace commas with spaces to handle both space and comma-separated input
     selection=${selection//,/ }
@@ -303,7 +303,7 @@ else
         echo
         echo -e "${BOLD}${YELLOW}Do you want to apply these profiles?${NC} ${CYAN}[y/N]:${NC}"
         echo -n "=> "
-        read confirm
+        read -r confirm
     else
         print_error "No valid profiles were selected."
         exit 1
@@ -321,7 +321,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
         # Set environment variables to prevent debconf warnings
         export DEBIAN_FRONTEND=noninteractive
         export DEBCONF_NONINTERACTIVE_SEEN=true
-        log_command "Updating package lists" sudo -E apt-get update -qq
+        log_command "Updating package lists" sudo --preserve-env=DEBIAN_FRONTEND,DEBCONF_NONINTERACTIVE_SEEN apt-get update -qq
         if [ $? -ne 0 ]; then
             print_error "Failed to update package lists. Please check your internet connection or package manager."
             exit 1
@@ -393,7 +393,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                         print_success "Completed $init_script_count init scripts for profile '$profile'"
                         # Run apt update after init scripts to ensure new repositories are available
                         print_info "Updating package lists after init scripts..."
-                        if ! log_command "Post-init scripts package list update" sudo -E apt-get update -qq; then
+                        if ! log_command "Post-init scripts package list update" sudo --preserve-env=DEBIAN_FRONTEND,DEBCONF_NONINTERACTIVE_SEEN apt-get update -qq; then
                             # Stale package lists would poison the upcoming install,
                             # so skip the rest of this profile but keep going on the others.
                             print_error "Failed to update package lists after init scripts; skipping packages and post-scripts for '$profile'."
@@ -484,7 +484,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                         export DEBCONF_NONINTERACTIVE_SEEN=true
                         
                         # Use a more robust approach to capture exit code
-                        if sudo -E apt-get install -y -qq --no-install-recommends "${available_packages[@]}" 2>&1 | tee -a "$LOG_FILE"; then
+                        if sudo --preserve-env=DEBIAN_FRONTEND,DEBCONF_NONINTERACTIVE_SEEN apt-get install -y -qq --no-install-recommends "${available_packages[@]}" 2>&1 | tee -a "$LOG_FILE"; then
                             print_success "All available packages installed successfully"
                             log_message "SUCCESS: All available packages installed successfully"
                         else
@@ -494,7 +494,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                             # Fallback: install packages individually if batch fails
                             for package in "${available_packages[@]}"; do
                                 print_progress "Installing $package individually..."
-                                if log_command "Installing $package individually" sudo -E apt-get install -y -qq "$package"; then
+                                if log_command "Installing $package individually" sudo --preserve-env=DEBIAN_FRONTEND,DEBCONF_NONINTERACTIVE_SEEN apt-get install -y -qq "$package"; then
                                     print_success "$package installed"
                                 else
                                     # Per-package failures get reported in the package

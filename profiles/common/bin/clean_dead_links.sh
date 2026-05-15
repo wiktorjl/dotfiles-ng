@@ -33,16 +33,16 @@ while IFS= read -r -d '' link; do
         echo ""
         echo "Dead link found: $link"
         # Show what the link was pointing to
-        target=$(readlink "$link")
+        target=$(readlink -- "$link")
         echo "  -> was pointing to: $target"
-        
+
         # Ask for confirmation
         printf "Remove this dead link? [y/N]: "
         read -r response </dev/tty
-        
+
         case "$response" in
             [yY]|[yY][eE][sS])
-                if rm "$link"; then
+                if rm -- "$link"; then
                     echo "  ✓ Removed: $link"
                 else
                     echo "  ✗ Failed to remove: $link"

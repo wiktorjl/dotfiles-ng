@@ -130,12 +130,15 @@ ${LINE_STAT1}
 ${LINE_STAT2}
 ${LINE_STAT3}"
 
-# Write to cache file atomically (write to temp file, then move).
+# Write to cache file atomically (mktemp in the same directory so the final
+# `mv` is a rename, not a cross-device copy).
+#
 # Format is intentionally NOT shell-sourceable: line 1 is the unix timestamp,
 # everything after a literal "---" marker is the rendered status. Reader uses
-# plain `read`/`cat`, never `source`, so user-controlled values (hostname,
+# plain `read`/`tail`, never `source`, so user-controlled values (hostname,
 # /etc/os-release fields, etc.) can never reach a shell parser.
-TEMP_FILE="${CACHE_FILE}.tmp.$$"
+TEMP_FILE="$(mktemp "${CACHE_FILE}.tmp.XXXXXXXX")"
+trap 'rm -f "${TEMP_FILE}"' EXIT
 {
     date +%s
     echo "---"
@@ -143,6 +146,7 @@ TEMP_FILE="${CACHE_FILE}.tmp.$$"
 } > "${TEMP_FILE}"
 
 mv "${TEMP_FILE}" "${CACHE_FILE}"
+trap - EXIT
 
 # Release lock
 flock -u 200

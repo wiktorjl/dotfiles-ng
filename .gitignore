@@ -3,3 +3,26 @@ build/
 *.tar
 *.gz
 *.zip
+
+# Secrets and credentials
+.env
+.env.*
+*.env
+*.key
+*.pem
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+*.kdbx
+
+# Decrypted output of lock_file.sh -d
+config_vars.secret
+
+# Timestamped backups produced by deploy_dotfiles.sh
+*.bak
+*.bak.*
+
+# Logs
+logs/
+*.log

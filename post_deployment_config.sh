@@ -135,16 +135,16 @@ is_ssh_enabled() {
 }
 
 # Ask for host name
-read -p "Enter the host name: " HOST_NAME
+read -r -p "Enter the host name: " HOST_NAME
 validate_hostname_label "hostname" "$HOST_NAME"
 # Set the hostname using container-aware method
 echo "Setting hostname to $HOST_NAME..."
 set_hostname "$HOST_NAME"
 
 # Ask if domain name should be set
-read -p "Do you want to set a domain name? (y/n): " SET_DOMAIN
+read -r -p "Do you want to set a domain name? (y/n): " SET_DOMAIN
 if [[ "$SET_DOMAIN" == "y" || "$SET_DOMAIN" == "Y" ]]; then
-    read -p "Enter the domain name: " DOMAIN_NAME
+    read -r -p "Enter the domain name: " DOMAIN_NAME
     validate_domain_name "$DOMAIN_NAME"
     echo "Setting domain name to $DOMAIN_NAME..."
     set_hostname "$HOST_NAME.$DOMAIN_NAME"
@@ -184,7 +184,7 @@ if [ -t 0 ]; then
     for g in "${privileged_groups[@]}"; do echo "  - $g"; done
     echo "Membership means any code running as $USER (including a compromised"
     echo "shell or extension) can trivially become root."
-    read -p "Add $USER to these groups anyway? (y/N): " ADD_PRIV_GROUPS
+    read -r -p "Add $USER to these groups anyway? (y/N): " ADD_PRIV_GROUPS
     if [[ "$ADD_PRIV_GROUPS" == "y" || "$ADD_PRIV_GROUPS" == "Y" ]]; then
         for group in "${privileged_groups[@]}"; do
             check_and_add_group "$group"
@@ -203,7 +203,7 @@ if is_container; then
     echo "Note: In containers, restart the container to apply hostname changes."
     echo "Group membership changes will take effect on next shell login."
 else
-    read -p "Do you want to reboot the system now? (y/n): " REBOOT_NOW
+    read -r -p "Do you want to reboot the system now? (y/n): " REBOOT_NOW
     if [[ "$REBOOT_NOW" == "y" || "$REBOOT_NOW" == "Y" ]]; then
         echo "Rebooting the system..."
         sudo reboot
@@ -215,7 +215,7 @@ fi
 echo "Configuration complete. Please check the changes and reboot if necessary."
 
 # Ask if SSH should be configured
-read -p "Do you want to configure SSH Server? (y/n): " CONFIGURE_SSH_SERVER
+read -r -p "Do you want to configure SSH Server? (y/n): " CONFIGURE_SSH_SERVER
 
 if [[ "$CONFIGURE_SSH_SERVER" == "y" || "$CONFIGURE_SSH_SERVER" == "Y" ]]; then
     # Check if SSH service is running

@@ -61,7 +61,9 @@ get_location() {
     
     echo "Current IP Location Information:"
     echo "------------------------------"
-    curl -s ipinfo.io
+    # HTTPS, fail loudly on non-2xx, surface errors. Previously this used
+    # plaintext `ipinfo.io` which downgrades to a MITM-spoofable HTTP query.
+    curl --fail --silent --show-error "https://ipinfo.io"
 }
 
 # Main script logic
