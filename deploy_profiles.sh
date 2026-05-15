@@ -357,7 +357,11 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
         
         print_info "Installing profiles in dependency order: ${ordered_profiles[*]}"
         echo
-        
+
+        # Track non-package failures (scripts, link step) across all profiles so
+        # we can still finish what we can and exit non-zero at the end.
+        FAILED_STEPS=()
+
         for profile in "${ordered_profiles[@]}"; do
             echo
             echo -e "${BOLD}${BLUE}+== Applying profile: ${WHITE}$profile${BLUE} ===============================================+${NC}"
@@ -379,7 +383,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                                 print_success "Init script '$(basename "$init_script")' completed successfully"
                             else
                                 print_error "Failed to run init script '$(basename "$init_script")'."
-                                exit 1
+                                FAILED_STEPS+=("$profile/init-scripts/$(basename "$init_script")")
                             fi
                         fi
                     done
@@ -390,8 +394,12 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                         # Run apt update after init scripts to ensure new repositories are available
                         print_info "Updating package lists after init scripts..."
                         if ! log_command "sudo -E apt-get update -qq" "Post-init scripts package list update"; then
-                            print_error "Failed to update package lists after init scripts."
-                            exit 1
+                            # Stale package lists would poison the upcoming install,
+                            # so skip the rest of this profile but keep going on the others.
+                            print_error "Failed to update package lists after init scripts; skipping packages and post-scripts for '$profile'."
+                            FAILED_STEPS+=("$profile/apt-update-after-init")
+                            echo -e "${BLUE}+=====================================================================+${NC}"
+                            continue
                         fi
                     fi
                 else
@@ -489,8 +497,10 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                                 if log_command "sudo -E apt-get install -y -qq '$package'" "Installing $package individually"; then
                                     print_success "$package installed"
                                 else
+                                    # Per-package failures get reported in the package
+                                    # verification summary below; keep going so other
+                                    # packages in the fallback still get a chance.
                                     print_error "Failed to install $package"
-                                    exit 1
                                 fi
                             done
                         fi
@@ -515,7 +525,7 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                             print_success "Script '$(basename "$script")' completed"
                         else
                             print_error "Failed to run script '$(basename "$script")'."
-                            exit 1
+                            FAILED_STEPS+=("$profile/post-scripts/$(basename "$script")")
                         fi
                     fi
                 done
@@ -533,11 +543,11 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
                     if [ -f "$BASE_DIR/link_bin_scripts.sh" ]; then
                         if ! bash "$BASE_DIR/link_bin_scripts.sh" "$profile" --non-interactive --system; then
                             print_error "Failed to link scripts for profile '$profile'."
-                            exit 1
+                            FAILED_STEPS+=("$profile/link-bin-scripts")
                         fi
                     else
                         print_error "link_bin_scripts.sh not found!"
-                        exit 1
+                        FAILED_STEPS+=("$profile/link-bin-scripts-missing")
                     fi
                 fi
 
@@ -597,13 +607,25 @@ if [ ${#selected_profiles[@]} -gt 0 ]; then
             else
                 print_warning "⚠️  Some packages failed to install. Check logs above for details."
                 log_message "WARNING: $total_failed packages failed to install"
-                exit 1
             fi
         else
             print_info "No packages were requested for installation."
             log_message "INFO: No packages were requested for installation"
         fi
         echo -e "${CYAN}+=========================================================================+${NC}"
+
+        if [ ${#FAILED_STEPS[@]} -gt 0 ]; then
+            echo
+            print_warning "⚠️  ${#FAILED_STEPS[@]} non-package step(s) failed:"
+            for step in "${FAILED_STEPS[@]}"; do
+                echo -e "  ${RED}- ${step}${NC}"
+            done
+            log_message "FAILED STEPS: ${FAILED_STEPS[*]}"
+        fi
+
+        if [ "${total_failed:-0}" -gt 0 ] || [ ${#FAILED_STEPS[@]} -gt 0 ]; then
+            exit 1
+        fi
     else
         print_info "Operation cancelled by user."
     fi

@@ -9,3 +9,9 @@ libelf-dev
 libssl-dev
 libdw-dev
 debhelper
+
+# Common Claude Code companions
+ripgrep
+fd-find
+jq
+gh

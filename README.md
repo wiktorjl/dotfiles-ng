@@ -56,12 +56,14 @@ A comprehensive dotfiles and system configuration management solution for Linux 
 ### What Gets Installed
 
 - **Dotfiles**: Symlinked from `dotfiles/` to `~/`
-  - `.bashrc`, `.bash_aliases`, `.tmux.conf`, etc.
-  - `.config/` directory contents
+  - `.bashrc`, `.aliases`, `.tmux.conf`, `.motd`, etc.
 
-- **System files**: Symlinked from `sysfiles-full/` and `sysfiles-partial/`
+- **System files**: Installed (root-owned copies) from `sysfiles-full/` to their
+  corresponding paths under `/`. Pre-existing files are moved aside to
+  `<path>.bak.<timestamp>` first.
 
-- **Utility scripts**: Linked to `~/.local/bin/`
+- **Utility scripts**: Linked to `~/.local/bin/` (and `/usr/local/bin/` when
+  run via `deploy_profiles.sh` / `link_bin_scripts.sh --system`)
   - `sysrod.sh`: System status display
   - `update_sysrod_cache.sh`: Cache updater for system status
   - `check_dotfiles_status.sh`: Git status checker
@@ -135,8 +137,11 @@ The cache updates automatically every 15 minutes in the background.
 
 ### File Encryption/Decryption
 ```bash
-./lock_file.sh <file>           # Encrypt file with age
-./lock_file.sh -d <file.age>    # Decrypt age-encrypted file
+# lock_file.sh lives in profiles/common/bin/ and is symlinked into ~/.local/bin
+# (and /usr/local/bin) by deploy_profiles.sh. Once that has run you can call it
+# by name; before that, invoke it from its profile path:
+profiles/common/bin/lock_file.sh <file>           # Encrypt file with age
+profiles/common/bin/lock_file.sh -d <file.age>    # Decrypt age-encrypted file
 ```
 
 ### Log Review

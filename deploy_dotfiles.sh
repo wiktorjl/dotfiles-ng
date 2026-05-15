@@ -68,6 +68,17 @@ print_banner() {
     echo -e "${CYAN}+==============================================================+${NC}"
     echo
 }
+usage() {
+    cat <<EOF
+Usage: $0 [--no-banner] [--non-interactive]
+
+  --no-banner        Suppress the startup banner (used when invoked from deploy_all.sh)
+  --non-interactive  Skip prompts that require a terminal. NOTE: this also
+                     skips age-encrypted file decryption — set up your age
+                     key and run interactively if you need that step.
+EOF
+}
+
 # Check if running standalone or from another script
 STANDALONE=true
 while [ $# -gt 0 ]; do
@@ -78,8 +89,13 @@ while [ $# -gt 0 ]; do
         --non-interactive)
             NON_INTERACTIVE=true
             ;;
+        -h|--help)
+            usage
+            exit 0
+            ;;
         *)
             print_error "Unknown argument: $1"
+            usage
             exit 1
             ;;
     esac
@@ -142,11 +158,8 @@ echo -e "${CYAN}|${NC} ${BOLD}Creating symbolic links...${NC}              ${CYA
 echo -e "${CYAN}+-------------------------------------------+${NC}"
 
 ln -sf "$BASE_DIR/dotfiles/bashrc" ~/.bashrc && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bashrc -> ~/.bashrc                   ${CYAN}|${NC}"
-ln -sf "$BASE_DIR/dotfiles/bashrc_candidates" ~/.bashrc_candidates && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bashrc_candidates -> ~/.bashrc_candidates ${CYAN}|${NC}"
-ln -sf "$BASE_DIR/dotfiles/bash-sensible" ~/.bash-sensible && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} bash-sensible -> ~/.bash-sensible     ${CYAN}|${NC}"
 ln -sf "$BASE_DIR/dotfiles/aliases" ~/.aliases && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} aliases -> ~/.aliases                 ${CYAN}|${NC}"
 ln -sf "$BASE_DIR/dotfiles/tmux.conf" ~/.tmux.conf && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} tmux.conf -> ~/.tmux.conf             ${CYAN}|${NC}"
-ln -sf "$BASE_DIR/dotfiles/tmux-sensible.sh" ~/.tmux-sensible.sh && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} tmux-sensible.sh -> ~/.tmux-sensible.sh ${CYAN}|${NC}"
 ln -sf "$BASE_DIR/config_vars" ~/.config_vars && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} config_vars -> ~/.config_vars         ${CYAN}|${NC}"
 ln -sf "$BASE_DIR/config_vars.secret" ~/.config_vars.secret && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} config_vars.secret -> ~/.config_vars.secret ${CYAN}|${NC}"
 ln -sf "$BASE_DIR/dotfiles/motd" ~/.motd && echo -e "${CYAN}|${NC} ${GREEN}[OK]${NC} motd -> ~/.motd ${CYAN}|${NC}"

@@ -12,9 +12,13 @@ YELLOW='\033[1;33m'
 RED='\033[0;31m'
 NC='\033[0m' # No Color
 
-DOTFILES_DIR="$HOME/dotfiles-ng"
+# Resolve the repo root from this script's real location (we live in
+# profiles/common/bin/, which gets symlinked into ~/.local/bin and /usr/local/bin
+# during deployment). Allow $DOTFILES_DIR to override for non-standard layouts.
+SCRIPT_REAL_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$(dirname "$SCRIPT_REAL_PATH")/../../.." && pwd)}"
 
-# Check if dotfiles-ng directory exists
+# Check if the dotfiles repo directory exists
 if [ ! -d "$DOTFILES_DIR" ]; then
     echo -e "${RED}Error: $DOTFILES_DIR directory not found${NC}"
     exit 1

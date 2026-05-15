@@ -30,6 +30,7 @@ NC='\033[0m'
 DRY_RUN=false
 BACKUP_FILE=""
 SEPARATOR=""
+UNMANAGED_LINE_COUNT=0
 declare -A running_vms
 declare -A running_vm_set
 declare -A all_vms
@@ -44,7 +45,15 @@ file_line_types=()
 file_line_keys=()
 
 show_help() {
-    sed -n '4,11p' "$0" | sed 's/^# //' | sed 's/^#//'
+    cat <<'EOF'
+Script to update /etc/hosts with KVM VM hostnames and IPs
+Usage:
+  update_kvm_hosts.sh [OPTIONS]
+
+Options:
+  --dry-run       Preview changes without modifying /etc/hosts
+  -h, --help      Show this help message
+EOF
     exit 0
 }
 
@@ -148,11 +157,13 @@ parse_hosts_file() {
                 file_lines+=("$line")
                 file_line_types+=("unmanaged")
                 file_line_keys+=("")
+                UNMANAGED_LINE_COUNT=$((UNMANAGED_LINE_COUNT + 1))
             fi
         else
             file_lines+=("$line")
             file_line_types+=("unmanaged")
             file_line_keys+=("")
+            UNMANAGED_LINE_COUNT=$((UNMANAGED_LINE_COUNT + 1))
         fi
     done < "$HOSTS_FILE"
 
@@ -262,42 +273,33 @@ determine_changes() {
     done
 }
 
+print_entry_list() {
+    # Args: nameref-to-assoc-array, indent
+    local -n entries=$1
+    local indent="$2"
+    for key in "${!entries[@]}"; do
+        local ip="${key%%|*}"
+        local vm_name="${key#*|}"
+        echo "${indent}- $vm_name ($ip)"
+    done
+}
+
 show_dry_run() {
     echo "DRY RUN - Changes to be applied:"
     echo ""
 
-    local add_count=0
-    local remove_count=0
-    local keep_count=0
-
-    for key in "${!add_entry[@]}"; do
-        add_count=$((add_count + 1))
-    done
-
-    for key in "${!removed_entry[@]}"; do
-        remove_count=$((remove_count + 1))
-    done
-
-    for key in "${!keep_entry[@]}"; do
-        keep_count=$((keep_count + 1))
-    done
+    local add_count=${#add_entry[@]}
+    local remove_count=${#removed_entry[@]}
+    local keep_count=${#keep_entry[@]}
 
     if [ $add_count -gt 0 ]; then
         echo "  Would add: $add_count entries"
-        for key in "${!add_entry[@]}"; do
-            local ip="${key%%|*}"
-            local vm_name="${key#*|}"
-            echo "    - $vm_name ($ip)"
-        done
+        print_entry_list add_entry "    "
     fi
 
     if [ $remove_count -gt 0 ]; then
         echo "  Would remove: $remove_count entries"
-        for key in "${!removed_entry[@]}"; do
-            local ip="${key%%|*}"
-            local vm_name="${key#*|}"
-            echo "    - $vm_name ($ip)"
-        done
+        print_entry_list removed_entry "    "
     fi
 
     if [ $add_count -eq 0 ] && [ $remove_count -eq 0 ]; then
@@ -349,58 +351,57 @@ generate_new_hosts() {
 }
 
 apply_changes() {
-    local temp_file="/tmp/hosts.new.$$"
-    generate_new_hosts > "$temp_file"
-
-    if [ ! -s "$temp_file" ]; then
-        echo -e "${RED}Error: Generated empty hosts file${NC}"
-        rm -f "$temp_file"
+    # Stage the new file in the same directory as the target so the final mv
+    # is a same-filesystem rename(2) — atomic, no truncation window on crash —
+    # and use mktemp so a hostile /tmp symlink can't race us into clobbering
+    # an unrelated file while we run as root.
+    local temp_file
+    if ! temp_file=$(mktemp "${HOSTS_FILE}.new.XXXXXX"); then
+        echo -e "${RED}Error: Failed to create temporary file${NC}" >&2
         exit 1
     fi
+    trap 'rm -f "$temp_file"' EXIT
+
+    generate_new_hosts > "$temp_file"
+
+    local new_line_count
+    new_line_count=$(wc -l < "$temp_file")
+    if [ "$new_line_count" -lt "$UNMANAGED_LINE_COUNT" ]; then
+        echo -e "${RED}Error: Generated hosts file is missing unmanaged lines${NC}" >&2
+        echo "  expected at least $UNMANAGED_LINE_COUNT unmanaged lines, got $new_line_count total" >&2
+        exit 1
+    fi
+
+    # Match the original file's permissions and ownership before swapping in.
+    local mode owner
+    mode=$(stat -c "%a" "$HOSTS_FILE")
+    owner=$(stat -c "%U:%G" "$HOSTS_FILE")
+    chmod "$mode" "$temp_file"
+    chown "$owner" "$temp_file"
 
     if ! mv "$temp_file" "$HOSTS_FILE"; then
         echo -e "${RED}Error: Failed to update $HOSTS_FILE${NC}" >&2
-        rm -f "$temp_file"
         exit 1
     fi
+    trap - EXIT
 }
 
 show_summary() {
     echo "KVM VMs /etc/hosts update summary:"
     echo ""
 
-    local add_count=0
-    local remove_count=0
-    local keep_count=0
-
-    for key in "${!add_entry[@]}"; do
-        add_count=$((add_count + 1))
-    done
-
-    for key in "${!removed_entry[@]}"; do
-        remove_count=$((remove_count + 1))
-    done
-
-    for key in "${!keep_entry[@]}"; do
-        keep_count=$((keep_count + 1))
-    done
+    local add_count=${#add_entry[@]}
+    local remove_count=${#removed_entry[@]}
+    local keep_count=${#keep_entry[@]}
 
     if [ $add_count -gt 0 ]; then
         echo -e "  ${GREEN}Added:${NC} $add_count entries"
-        for key in "${!add_entry[@]}"; do
-            local ip="${key%%|*}"
-            local vm_name="${key#*|}"
-            echo "    - $vm_name ($ip)"
-        done
+        print_entry_list add_entry "    "
     fi
 
     if [ $remove_count -gt 0 ]; then
         echo -e "  ${YELLOW}Removed:${NC} $remove_count entries"
-        for key in "${!removed_entry[@]}"; do
-            local ip="${key%%|*}"
-            local vm_name="${key#*|}"
-            echo "    - $vm_name ($ip)"
-        done
+        print_entry_list removed_entry "    "
     fi
 
     if [ $add_count -eq 0 ] && [ $remove_count -eq 0 ]; then

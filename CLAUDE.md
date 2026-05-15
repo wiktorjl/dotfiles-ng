@@ -33,8 +33,11 @@ This is a dotfiles management system for Linux environments that provides automa
 
 ### File Encryption/Decryption
 ```bash
-./lock_file.sh <file>           # Encrypt file with age
-./lock_file.sh -d <file.age>    # Decrypt age-encrypted file
+# lock_file.sh ships in profiles/common/bin/ and is symlinked into ~/.local/bin
+# (and /usr/local/bin) by deploy_profiles.sh. Once that has run, invoke it
+# directly by name; before that, call it from its profile path:
+profiles/common/bin/lock_file.sh <file>           # Encrypt file with age
+profiles/common/bin/lock_file.sh -d <file.age>    # Decrypt age-encrypted file
 ```
 
 ### Log Review
@@ -64,8 +67,7 @@ This is a dotfiles management system for Linux environments that provides automa
 
 ### Dotfiles Management
 - **dotfiles/** - Contains actual configuration files to be symlinked
-  - bashrc, aliases, tmux.conf, bash-sensible
-  - .config/ subdirectory for application configs
+  - bashrc, bashrc_candidates, aliases, bash-sensible, tmux.conf, tmux-sensible.sh, motd
 - Deployment creates symlinks from home directory to these files
 - Original files are backed up with .bak extension
 
@@ -79,7 +81,7 @@ This is a dotfiles management system for Linux environments that provides automa
 - **deploy_dotfiles.sh** - Handles dotfiles linking and system configuration only
 - **deploy_profiles.sh** - Interactive profile selector, reads package lists, executes init/post scripts, and links bin scripts
 - **link_bin_scripts.sh** - Links profile bin scripts to ~/.local/bin and optionally /usr/local/bin (called by deploy_profiles.sh)
-- **lock_file.sh** - Helper script for file encryption/decryption using age
+- **profiles/common/bin/lock_file.sh** - Helper script for file encryption/decryption using age
 - **post_deployment_config.sh** - Sets hostname and adds user to groups (docker, libvirt, kvm, etc.)
 
 ### Configuration

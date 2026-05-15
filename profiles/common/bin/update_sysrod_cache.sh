@@ -73,19 +73,21 @@ elif grep -q "hypervisor" /proc/cpuinfo 2>/dev/null; then
 fi || true
 
 # Dotfiles Status Check
+# Resolve the repo from this script's real location (we live in
+# profiles/common/bin/ and are symlinked into ~/.local/bin and /usr/local/bin).
+# Allow $DOTFILES_DIR to override for non-standard layouts.
+SCRIPT_REAL_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
+SCRIPT_DIR="$(dirname "$SCRIPT_REAL_PATH")"
+DOTFILES_DIR="${DOTFILES_DIR:-$(cd "$SCRIPT_DIR/../../.." && pwd)}"
+
 DOTFILES_STATUS=""
-if [ -d "$HOME/dotfiles-ng" ]; then
-    # Get the absolute path to the script directory
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if [ -d "$DOTFILES_DIR" ]; then
     if [ -x "$SCRIPT_DIR/check_dotfiles_status.sh" ]; then
         DOTFILES_STATUS=$("$SCRIPT_DIR/check_dotfiles_status.sh" 2>/dev/null || echo "Dotfiles: error")
+    elif [ -x "$HOME/.local/bin/check_dotfiles_status.sh" ]; then
+        DOTFILES_STATUS=$("$HOME/.local/bin/check_dotfiles_status.sh" 2>/dev/null || echo "Dotfiles: error")
     else
-        # Fallback: try to find it in ~/.local/bin
-        if [ -x "$HOME/.local/bin/check_dotfiles_status.sh" ]; then
-            DOTFILES_STATUS=$("$HOME/.local/bin/check_dotfiles_status.sh" 2>/dev/null || echo "Dotfiles: error")
-        else
-            DOTFILES_STATUS="Dotfiles: script not found"
-        fi
+        DOTFILES_STATUS="Dotfiles: script not found"
     fi
 else
     DOTFILES_STATUS="Dotfiles: not found"

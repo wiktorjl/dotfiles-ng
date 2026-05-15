@@ -1,96 +1,99 @@
 # ~/.bashrc: executed by bash(1) for non-login shells.
 
+# Non-interactive: bail early.
 case $- in
 *i*) ;;
 *) return ;;
 esac
 
+# ─── Sourced config ───────────────────────────────────────────────────────
 source ~/.config_vars
 source ~/.aliases
-source ~/.bashrc_candidates
 
 if [ -f ~/.config_vars.secret ]; then
-  source ~/.config_vars.secret
+    source ~/.config_vars.secret
 fi
 
 if [ -f ~/.config_secret_vars.age ]; then
-  echo "Looks like you have encrypted config_secret_vars file. Please decrypt it first."
+    echo "Looks like you have an encrypted config_secret_vars file. Please decrypt it first."
 fi
 
-if [ -f ~/.bash_aliases ]; then
-  . ~/.bash_aliases
-fi
+# ─── Prompt ───────────────────────────────────────────────────────────────
+PS1='\n\[\e[38;5;51m\][\[\e[0m\]\h\[\e[38;5;200m\]//\[\e[38;5;33m\]\#\[\e[38;5;51m\]]\[\e[0m\] \[\e[3m\]\W\n\[\e[0;38;5;200m\]\$\[\e[0m\] '
 
-# Default prompts
-PS1_ONE_LINE='\[\e[38;5;201m\][\[\e[38;5;213;1;2m\]\h\[\e[0;2;38;5;220m\]//\[\e[0;38;5;213;1m\]\#\[\e[0;38;5;201m\]]\[\e[0m\] \[\e[3m\]\w\[\e[0m\] \[\e[38;5;221;1m\]\$\[\e[0m\] '
-PS1_TWO_LINE='\n\[\e[38;5;51m\][\[\e[0m\]\h\[\e[38;5;200m\]//\[\e[38;5;33m\]\#\[\e[38;5;51m\]]\[\e[0m\] \[\e[3m\]\W\n\[\e[0;38;5;200m\]\$\[\e[0m\] '
-
-# Check if running in a container and if so add container name to prompt
+# Inside distrobox: show the container ID in the prompt.
 if [ -n "$DISTROBOX_ENTER_PATH" ]; then
-  container_name=$(echo "$CONTAINER_ID" | cut -d'_' -f1)
-  PS1_ONE_LINE='\[\e[38;5;51m\][\[\e[38;5;214m\]📦\[\e[38;5;33m\]${CONTAINER_ID:-UNK}\[\e[38;5;200m\]//\[\e[38;5;33m\]\#\[\e[38;5;51m\]]\[\e[0m\] \[\e[3m\]\W\[\e[0m\] \[\e[38;5;200m\]\$\[\e[0m\] '
-  PS1_TWO_LINE='\[\e[38;5;51m\][\[\e[38;5;214m\]📦\[\e[38;5;33m\]${CONTAINER_ID:-UNK}\[\e[38;5;200m\]/\[\e[38;5;200m\]/\[\e[38;5;33m\]\#\[\e[38;5;51m\]]\[\e[0m\] \[\e[3m\]\W\n\[\e[0;38;5;200m\]\$\[\e[0m\] '
+    PS1='\[\e[38;5;51m\][\[\e[38;5;214m\]📦\[\e[38;5;33m\]${CONTAINER_ID:-UNK}\[\e[38;5;200m\]/\[\e[38;5;200m\]/\[\e[38;5;33m\]\#\[\e[38;5;51m\]]\[\e[0m\] \[\e[3m\]\W\n\[\e[0;38;5;200m\]\$\[\e[0m\] '
 fi
+export PS1
 
-export PS1=$PS1_TWO_LINE # decide which one to use
-
+# ─── Environment ──────────────────────────────────────────────────────────
 export GPG_TTY="$(tty)"
-export SSH_AUTH_SOCK=$(gpgconf --list-dirs agent-ssh-socket)
+export SSH_AUTH_SOCK="$(gpgconf --list-dirs agent-ssh-socket)"
 export MANPAGER='nvim +Man!'
-export XDG_DATA_DIRS=$XDG_DATA_DIRS:/var/lib/flatpak/exports/share:/home/seed/.local/share/flatpak/exports/share
-export PATH=$PATH:$HOME/.local/bin:$HOME/scripts:$HOME/scripts/virsh
-#export SSH_ASKPASS=ksshaskpass
-#export SSH_ASKPASS_REQUIRE=prefer
+export XDG_DATA_DIRS="${XDG_DATA_DIRS}:/var/lib/flatpak/exports/share:${HOME}/.local/share/flatpak/exports/share"
 
+# Add personal bin dirs to PATH only if not already present (nested shells
+# would otherwise accrete duplicate entries on every bashrc re-run).
+for _bin in "$HOME/.local/bin" "$HOME/scripts" "$HOME/scripts/virsh"; do
+    case ":$PATH:" in
+        *":$_bin:"*) ;;
+        *) PATH="$PATH:$_bin" ;;
+    esac
+done
+unset _bin
+export PATH
 
-# # If .ssh exists and contains keys, use keychain to manage them
-# if [ -d "$HOME/.ssh" ] && [ "$(ls -A $HOME/.ssh)" ]; then
-#     if command -v keychain &> /dev/null; then
-#       eval $(keychain --eval --quiet id_github id_homelan)
-#       gpgconf --launch gpg-agent
-#     else
-#       echo "keychain is not installed. Please install it to manage SSH keys."
-#     fi
-# else
-#     echo "No SSH keys found in $HOME/.ssh. Skipping keychain setup."
-# fi
+# ─── Shell behavior (load-bearing bits formerly in bash-sensible) ─────────
+shopt -s checkwinsize           # keep LINES/COLUMNS fresh after each command
+shopt -s globstar 2>/dev/null   # ** matches recursively
+shopt -s histappend             # append to histfile (multi-shell safe)
+shopt -s cmdhist                # save multi-line commands as one entry
+shopt -s autocd 2>/dev/null
+shopt -s dirspell 2>/dev/null
+shopt -s cdspell 2>/dev/null
 
-# Check if DOTFILES_REQUEST_TMUX is set to 1
-if [ -z "$DOTFILES_REQUEST_TMUX" ]; then
-    DOTFILES_REQUEST_TMUX=0
+bind 'set completion-ignore-case on'
+bind 'TAB:menu-complete'                          # tab cycles through matches
+bind '"\e[A": history-search-backward'            # up-arrow: prefix-search history
+bind '"\e[B": history-search-forward'
+
+PROMPT_DIRTRIM=2
+PROMPT_COMMAND="history -a;${PROMPT_COMMAND:-}"   # append, don't clobber
+
+HISTSIZE=500000
+HISTFILESIZE=500000                               # must be >= HISTSIZE
+HISTCONTROL="erasedups:ignoreboth"
+HISTTIMEFORMAT='%F %T '
+export HISTIGNORE="&:[ ]*:exit:ls:bg:fg:history:clear"
+
+# ─── tmux auto-attach on opt-in ───────────────────────────────────────────
+if [ "${DOTFILES_REQUEST_TMUX:-0}" -eq 1 ] \
+    && [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] \
+    && [ "$TERM_PROGRAM" != "vscode" ] \
+    && [ -z "$TMUX" ] \
+    && command -v tmux &>/dev/null; then
+    if tmux has-session -t default 2>/dev/null; then
+        tmux attach-session -t default
+    else
+        tmux new-session -s default
+    fi
 fi
-# If DOTFILES_REQUEST_TMUX is set to 1, start tmux
-if [ "$DOTFILES_REQUEST_TMUX" -eq 1 ]; then
-  if [ -z "$SSH_CONNECTION" ] && [ -z "$SSH_CLIENT" ] && [ "$TERM_PROGRAM" != "vscode" ] && command -v tmux &> /dev/null && [ -z "$TMUX" ]; then
-      # If tmux is installed and we're not already in a tmux session
-      tmux setw -g mouse on   
-      # Try to attach to an existing 'default' session
-      if tmux has-session -t default 2>/dev/null; then
-          # Session exists, attach to it and create a new window
-          tmux attach-session -t default
-          tmux new-window
-          #tmux select-window -t :$
-      else
-          # Session doesn't exist, create a new one
-          tmux new-session -s default
-      fi
-  fi
+
+# ─── Optional helpers ─────────────────────────────────────────────────────
+if [ "${NEED_SCREEN_AUTORESIZE:-0}" -eq 1 ] && [ -n "$DISPLAY" ]; then
+    ~/.local/bin/autoscreen.sh > /dev/null 2>&1
 fi
 
-if [ "$NEED_SCREEN_AUTORESIZE" -eq 1 ] && [ -n "$DISPLAY" ]; then
-	~/.local/bin/autoscreen.sh > /dev/null 2>&1 
+# Source sysrod.sh (system status display) if available.
+if [ -f "$HOME/.local/bin/sysrod.sh" ]; then
+    source "$HOME/.local/bin/sysrod.sh"
 fi
 
-# Source sysrod.sh if it exists
-if [ -f $HOME/.local/bin/sysrod.sh ]; then
-    source $HOME/.local/bin/sysrod.sh
-fi
-
-# Source .bashrc.local if it exists
+# Machine-local overrides.
 if [ -f ~/.bashrc.local ]; then
     source ~/.bashrc.local
 fi
-
 
 if [ -f ~/.motd ]; then
     cat ~/.motd

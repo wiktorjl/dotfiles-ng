@@ -1,12 +1,6 @@
 if [ -x /usr/bin/dircolors ]; then
-  test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
-  alias ls='ls --color=auto'
-  
-  #alias dir='dir --color=auto'
-  #alias vdir='vdir --color=auto'
-  #alias grep='grep --color=auto'
-  #alias fgrep='fgrep --color=auto'
-  #alias egrep='egrep --color=auto'
+    test -r ~/.dircolors && eval "$(dircolors -b ~/.dircolors)" || eval "$(dircolors -b)"
+    alias ls='ls --color=auto'
 fi
 
 alias dotfiles='/usr/bin/git --git-dir=$HOME/.dotfiles/ --work-tree=$HOME'
@@ -15,18 +9,7 @@ alias ll='ls -l'
 alias la='ls -A'
 alias l='ls -CF'
 
-alias rm='rm -i'
 alias RL="source ~/.bashrc"
-alias F="fabric -s"
-
-alias D="distrobox"
-alias DC="distrobox create --image "
-alias DE="distrobox enter"
-alias DL="distrobox list"
-
-# alias cat="batcat -fn"
-
-fDK() { distrobox stop $1 && distrobox rm $1; }
 
 alias csvenv="virtualenv .venv && source .venv/bin/activate"
 alias svenv="source .venv/bin/activate"
@@ -35,8 +18,32 @@ alias td="tmux detach"
 
 alias glowp="glow -p"
 
-alias cloak="tar czf /tmp/`basename $(pwd)`.tar.gz $(pwd) && age --passphrase -o `basename $(pwd)`.tar.gz.age /tmp/`basename $(pwd)`.tar.gz && rm -rf /tmp/`basename $(pwd)`.tar.gz"
-alias uncloak="age --decrypt -o ./$1.tar.gz ./$1.tar.gz.age && tar xzf ./$1.tar.gz && rm -rf ./$1.tar.gz && rm -rf ./$1.tar.gz.age"
+# Tar+age-encrypt the current directory. Was an alias, but `$(pwd)`/backticks
+# in an alias are expanded at *definition* time (shell startup) — so the old
+# alias forever cloaked whatever directory the shell was started in.
+cloak() {
+    local name tarball
+    name=$(basename "$PWD")
+    tarball=$(mktemp --suffix=".tar.gz" "/tmp/${name}.XXXXXX.tar.gz")
+    tar czf "$tarball" -C "$(dirname "$PWD")" "$name" \
+        && age --passphrase -o "./${name}.tar.gz.age" "$tarball"
+    local rc=$?
+    rm -f "$tarball"
+    return $rc
+}
+
+# Decrypt and unpack a cloak archive. `$1` inside an alias is literal — only
+# functions get real positional args.
+uncloak() {
+    if [ -z "${1:-}" ]; then
+        echo "usage: uncloak <name>  (operates on ./<name>.tar.gz.age)" >&2
+        return 2
+    fi
+    local name="$1"
+    age --decrypt -o "./${name}.tar.gz" "./${name}.tar.gz.age" \
+        && tar xzf "./${name}.tar.gz" \
+        && rm -f "./${name}.tar.gz"
+}
 
 alias superclaude="claude --dangerously-skip-permissions"
 
