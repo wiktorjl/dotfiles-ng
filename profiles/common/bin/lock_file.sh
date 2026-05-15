@@ -3,8 +3,23 @@
 # Encrypt or decrypt files using `age` with a passphrase.
 #
 # Usage:
-#   lock_file.sh <file> [<file> ...]      # encrypt -> writes <file>.age, removes <file>
-#   lock_file.sh -d <file.age> [...]      # decrypt -> writes <file>, KEEPS <file>.age
+#   lock_file.sh [-f] <file> [<file> ...]      # encrypt -> writes <file>.age, removes <file>
+#   lock_file.sh -d [-f] <file.age> [...]      # decrypt -> writes <file>, KEEPS <file>.age
+#   lock_file.sh -h | --help                   # show usage and exit
+#
+# Flags:
+#   -d           Decrypt mode (default is encrypt).
+#   -f           Force overwrite of an existing output file.
+#   -h, --help   Print this help and exit.
+#
+# Non-interactive use:
+#   Set the LOCK_FILE_PASSPHRASE env var to drive `age --passphrase` without a
+#   controlling terminal. Requires `script` (util-linux) on PATH.
+#
+#       LOCK_FILE_PASSPHRASE='hunter2' lock_file.sh secrets.txt
+#
+#   The passphrase appears in this process's environment; anyone able to read
+#   /proc/<pid>/environ can see it. Use only on hosts you trust.
 #
 # Notes on safety:
 #   * Decrypt does NOT remove the ciphertext. The previous version did, with
@@ -20,24 +35,49 @@
 
 set -uo pipefail
 
+usage() {
+    sed -n '3,22p' "$0" | sed 's/^# \{0,1\}//'
+}
+
 force=false
 mode="encrypt"
 
-# Parse leading flags. Order: -d (decrypt), -f (force overwrite), then files.
+# Parse leading flags. Order: -d (decrypt), -f (force overwrite), -h/--help, then files.
 while [ $# -gt 0 ]; do
     case "$1" in
         -d) mode="decrypt"; shift ;;
         -f) force=true; shift ;;
+        -h|--help) usage; exit 0 ;;
         --) shift; break ;;
-        -*) echo "Unknown flag: $1" >&2; exit 2 ;;
+        -*) echo "Unknown flag: $1" >&2; usage >&2; exit 2 ;;
         *) break ;;
     esac
 done
 
 if [ $# -eq 0 ]; then
-    echo "Usage: $0 [-d] [-f] <file> [<file> ...]" >&2
+    usage >&2
     exit 2
 fi
+
+# Drive `age --passphrase` non-interactively when LOCK_FILE_PASSPHRASE is set.
+# `age` reads the passphrase from /dev/tty, not stdin, so we allocate a PTY
+# via script(1) and write the passphrase into it. Encrypt prompts twice for
+# confirmation; sending it twice is harmless on decrypt (age reads only what
+# it needs and ignores trailing input).
+run_age() {
+    if [ -z "${LOCK_FILE_PASSPHRASE-}" ]; then
+        age "$@"
+        return $?
+    fi
+    if ! command -v script >/dev/null 2>&1; then
+        echo "Error: LOCK_FILE_PASSPHRASE is set but 'script' (util-linux) is not installed." >&2
+        return 1
+    fi
+    local cmd
+    cmd=$(printf '%q ' age "$@")
+    printf '%s\n%s\n' "$LOCK_FILE_PASSPHRASE" "$LOCK_FILE_PASSPHRASE" \
+        | script -qefc "$cmd" /dev/null >/dev/null
+}
 
 overall_exit_code=0
 
@@ -56,7 +96,7 @@ if [ "$mode" = "decrypt" ]; then
             continue
         fi
         echo "Decrypting $file -> $plaintext"
-        if age --decrypt -o "$plaintext" "$file"; then
+        if run_age --decrypt -o "$plaintext" "$file"; then
             echo "Decryption successful. Ciphertext $file kept on disk."
         else
             echo "Decryption failed for $file." >&2
@@ -77,7 +117,7 @@ else
             continue
         fi
         echo "Encrypting $file -> $ciphertext"
-        if age --passphrase -o "$ciphertext" "$file"; then
+        if run_age --passphrase -o "$ciphertext" "$file"; then
             echo "Encryption successful. Removing plaintext $file."
             rm -f "$file"
         else

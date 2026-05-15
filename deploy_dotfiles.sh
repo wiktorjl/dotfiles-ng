@@ -121,30 +121,50 @@ fi
 # is timestamped so consecutive runs never overwrite prior backups.
 print_progress "Backing up original dotfiles (skip if do not exist)..."
 backup_count=0
+skipped_count=0
 backup_ts="$(date +%Y%m%d_%H%M%S)"
+# backup_dotfile <target> [<expected_source>]
+# If <expected_source> is given and <target> is already a symlink resolving to
+# it, the file is considered already-deployed and is NOT re-backed-up. This
+# avoids backup churn on repeated deploys.
 backup_dotfile() {
     local path="$1"
-    if [ -e "$path" ] || [ -L "$path" ]; then
-        local dest="${path}.bak.${backup_ts}"
-        if cp -P "$path" "$dest"; then
-            print_info "Backed up $path -> $dest"
-            backup_count=$((backup_count + 1))
-        else
-            print_warning "Failed to back up $path"
+    local expected="${2-}"
+    if [ ! -e "$path" ] && [ ! -L "$path" ]; then
+        return 0
+    fi
+    if [ -n "$expected" ] && [ -L "$path" ]; then
+        local current
+        current="$(readlink -f -- "$path" 2>/dev/null || true)"
+        local resolved_expected
+        resolved_expected="$(readlink -f -- "$expected" 2>/dev/null || true)"
+        if [ -n "$current" ] && [ "$current" = "$resolved_expected" ]; then
+            skipped_count=$((skipped_count + 1))
+            return 0
         fi
+    fi
+    local dest="${path}.bak.${backup_ts}"
+    if cp -P "$path" "$dest"; then
+        print_info "Backed up $path -> $dest"
+        backup_count=$((backup_count + 1))
+    else
+        print_warning "Failed to back up $path"
     fi
 }
 
-backup_dotfile ~/.tmux.conf
-backup_dotfile ~/.bashrc
-backup_dotfile ~/.aliases
+backup_dotfile ~/.tmux.conf  "$BASE_DIR/dotfiles/tmux.conf"
+backup_dotfile ~/.bashrc     "$BASE_DIR/dotfiles/bashrc"
+backup_dotfile ~/.aliases    "$BASE_DIR/dotfiles/aliases"
 backup_dotfile ~/.bash_profile
-backup_dotfile ~/.motd
+backup_dotfile ~/.motd       "$BASE_DIR/dotfiles/motd"
 
 if [ $backup_count -eq 0 ]; then
     print_info "No existing dotfiles found to backup"
 else
     print_success "Backed up $backup_count existing dotfiles"
+fi
+if [ $skipped_count -gt 0 ]; then
+    print_info "Skipped backup for $skipped_count dotfile(s) already symlinked to the repo"
 fi
 
 

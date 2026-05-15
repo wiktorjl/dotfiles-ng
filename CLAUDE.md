@@ -69,7 +69,7 @@ profiles/common/bin/lock_file.sh -d <file.age>    # Decrypt age-encrypted file
 - **dotfiles/** - Contains actual configuration files to be symlinked
   - bashrc, bashrc_candidates, aliases, bash-sensible, tmux.conf, tmux-sensible.sh, motd
 - Deployment creates symlinks from home directory to these files
-- Original files are backed up with .bak extension
+- Original files are backed up with a `.bak.YYYYMMDD_HHMMSS` suffix (timestamped so re-runs never overwrite an earlier backup). If the target is already a correct symlink into `dotfiles/`, no backup is made.
 
 ### System Files
 - **sysfiles-full/** - Complete system configuration files (e.g., /etc files)
